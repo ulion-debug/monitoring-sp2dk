@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Monitoring SP2DK</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+body{
+    background:#f6f6f6;
+}
+
+.header{
+    background:#f7c81e;
+    padding:10px;
+    font-weight:bold;
+    text-align:center;
+    font-size:28px;
+}
+
+.table-header{
+    background:#003399;
+    color:white;
+}
+
+.sidebar{
+    width:110px;
+    background:white;
+    position:fixed;
+    top:0;
+    bottom:0;
+    padding-top:120px;
+    border-right:1px solid #ddd;
+}
+
+.content{
+    margin-left:130px;
+    padding:20px;
+}
+
+.success-red{
+    color:#ff4800;
+    font-weight:bold;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">MONITORING SP2DK</div>
+
+<div class="sidebar text-center">
+    <div class="mb-3 fw-bold text-warning">RINGKASAN</div>
+    <div class="mb-3 fw-bold">CLOSED</div>
+    <div class="mb-3 fw-bold text-primary">OUTSTANDING</div>
+</div>
+
+<div class="content">
+
+<form method="get">
+<div class="row mb-3">
+
+    <div class="col">
+        <label>Seksi</label>
+        <select name="seksi" class="form-control" onchange="this.form.submit()">
+            <option value="All" {% if selected_seksi == "All" %}selected{% endif %}>All</option>
+            {% for s in seksi_list %}
+            <option value="{{ s }}" {% if selected_seksi == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="col">
+        <label>Kesimpulan LHP2DK</label>
+        <select name="kesimpulan" class="form-control" onchange="this.form.submit()">
+            <option value="All" {% if selected_kesimpulan == "All" %}selected{% endif %}>All</option>
+            {% for k in kesimpulan_list %}
+            <option value="{{ k }}" {% if selected_kesimpulan == k %}selected{% endif %}>{{ k }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+</div>
+</form>
+
+<table class="table table-bordered">
+<thead class="table-header">
+<tr>
+<th>UNIT ORGANISASI</th>
+<th>SP2DK</th>
+<th>LHP2DK</th>
+<th>SP2DK OUTSTANDING</th>
+<th>POTENSI</th>
+<th>REALISASI</th>
+<th>SUCCESS RATE</th>
+</tr>
+</thead>
+
+<tbody>
+{% for r in records %}
+<tr>
+<td>{{ r.UNIT }}</td>
+<td>{{ r.SP2DK }}</td>
+<td>{{ r.LHP2DK }}</td>
+<td>{{ r.OUTSTANDING }}</td>
+<td>{{ r.POTENSI }}</td>
+<td>{{ r.REALISASI }}</td>
+<td class="success-red">
+    {{ r.SUCCESS_RATE|floatformat:2 }}%
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+<div class="row">
+<div class="col-md-6">
+<h5 class="text-center">KESIMPULAN LHP2DK</h5>
+<canvas id="pie"></canvas>
+</div>
+
+<div class="col-md-6">
+<h5 class="text-center">SP2DK TERBIT PER BULAN</h5>
+<canvas id="bar"></canvas>
+</div>
+
+</div>
+
+</div>
+
+<script>
+new Chart(document.getElementById("pie"),{
+    type:'pie',
+    data:{
+        labels: {{ pie_labels|safe }},
+        datasets:[{
+            data: {{ pie_values|safe }}
+        }]
+    }
+});
+
+new Chart(document.getElementById("bar"),{
+    type:'bar',
+    data:{
+        labels: {{ bulan|safe }},
+        datasets:[{
+            data: {{ sp2dk_bulanan|safe }}
+        }]
+    }
+});
+</script>
+
+</body>
+</html>
