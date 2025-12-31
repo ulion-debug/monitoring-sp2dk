@@ -48,16 +48,21 @@ GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO sp2dkuser;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO sp2dkuser;
 
 pip install "psycopg[binary]"
+
 pip install uvicorn
+
 pip install fastapi uvicorn python-jose[cryptography] passlib[bcrypt] sqlalchemy
 
 ## Python
 #### jalanin untuk create user
 python -m monitoring_sp2dk.create_fastapi_user
+
 -- username = monitoring
+
 -- password = Monitoringsp2dK
 
 ### Run
 python -m uvicorn monitoring_sp2dk.auth_api:app --reload --port 8001
+
 python manage.py runserver
 
