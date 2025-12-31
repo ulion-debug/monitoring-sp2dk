@@ -55,6 +55,10 @@ pip install fastapi uvicorn python-jose[cryptography] passlib[bcrypt] sqlalchemy
 
 ## Python
 #### jalanin untuk create user
+python manage.py makemigrations
+
+python manage.py migrate 
+
 python -m monitoring_sp2dk.create_fastapi_user
 
 -- username = monitoring
