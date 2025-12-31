@@ -1,4 +1,4 @@
-DATABASE
+## DATABASE
 CREATE DATABASE sp2dkdb;
 CREATE USER sp2dkuser WITH PASSWORD 'passwordku';
 ALTER ROLE sp2dkuser SET client_encoding TO 'utf8';
