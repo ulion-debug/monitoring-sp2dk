@@ -1,10 +1,14 @@
 ## DATABASE
 CREATE DATABASE sp2dkdb;
+
 CREATE USER sp2dkuser WITH PASSWORD 'passwordku';
+
 ALTER ROLE sp2dkuser SET client_encoding TO 'utf8';
+
 ALTER ROLE sp2dkuser SET default_transaction_isolation TO 'read committed';
-ALTER ROLE sp2dkuser SET timezone TO 'Asia/Jakarta';
-GRANT ALL PRIVILEGES ON DATABASE sp2dkdb TO sp2dkuser;
+
+-- ALTER ROLE sp2dkuser SET timezone TO 'Asia/Jakarta';
+-- GRANT ALL PRIVILEGES ON DATABASE sp2dkdb TO sp2dkuser;
 
 ----------
 
