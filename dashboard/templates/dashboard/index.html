@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
+    {% load humanize %}
 <head>
-<title>Monitoring SP2DK</title>
+<title>MONITORING SP2DK</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -9,44 +10,56 @@
 <style>
 
 body{
-    background:#f6f6f6;
+    background:#eef1f4;
+    font-family:Arial;
 }
 
 .header{
     background:#f7c81e;
-    padding:10px;
+    padding:15px;
+    font-size:28px;
     font-weight:bold;
     text-align:center;
-    font-size:28px;
-}
-
-.table-header{
-    background:#003399;
-    color:white;
 }
 
 .sidebar{
-    width:110px;
+    width:130px;
     background:white;
     position:fixed;
     top:0;
     bottom:0;
-    padding-top:120px;
+    padding-top:130px;
     border-right:1px solid #ddd;
 }
 
-.content{
-    margin-left:130px;
-    padding:20px;
+.sidebar-item{
+    padding:12px;
+    font-weight:bold;
+    cursor:pointer;
 }
 
-.success-red{
-    color:#ff4800;
-    font-weight:bold;
+.sidebar-item:hover{
+    background:#f7c81e;
+}
+
+.content{
+    margin-left:150px;
+    padding:15px;
+}
+
+.card-box{
+    background:white;
+    padding:12px;
+    border-radius:10px;
+    box-shadow:0 3px 6px rgba(0,0,0,.1);
+}
+
+.table-header{
+    background:#0a2d82;
+    color:white;
 }
 
 </style>
-
 </head>
 
 <body>
@@ -54,78 +67,145 @@ body{
 <div class="header">MONITORING SP2DK</div>
 
 <div class="sidebar text-center">
-    <div class="mb-3 fw-bold text-warning">RINGKASAN</div>
-    <div class="mb-3 fw-bold">CLOSED</div>
-    <div class="mb-3 fw-bold text-primary">OUTSTANDING</div>
+    <div class="sidebar-item text-warning">RINGKASAN</div>
+    <div class="sidebar-item">CLOSED</div>
+    <div class="sidebar-item text-primary">OUTSTANDING</div>
 </div>
 
 <div class="content">
 
-<form method="get">
-<div class="row mb-3">
+<!-- FILTER -->
+<form method="get" class="card-box mb-3">
 
-    <div class="col">
-        <label>Seksi</label>
-        <select name="seksi" class="form-control" onchange="this.form.submit()">
-            <option value="All" {% if selected_seksi == "All" %}selected{% endif %}>All</option>
-            {% for s in seksi_list %}
-            <option value="{{ s }}" {% if selected_seksi == s %}selected{% endif %}>{{ s }}</option>
-            {% endfor %}
-        </select>
-    </div>
+<div class="row">
 
-    <div class="col">
-        <label>Kesimpulan LHP2DK</label>
-        <select name="kesimpulan" class="form-control" onchange="this.form.submit()">
-            <option value="All" {% if selected_kesimpulan == "All" %}selected{% endif %}>All</option>
-            {% for k in kesimpulan_list %}
-            <option value="{{ k }}" {% if selected_kesimpulan == k %}selected{% endif %}>{{ k }}</option>
-            {% endfor %}
-        </select>
-    </div>
+<div class="col-md-2">
+<label>Tahun SP2DK</label>
+<select name="tahun_sp2dk" class="form-control" onchange="this.form.submit()">
+<option value="All">All</option>
+{% for t in tahun_list %}
+<option value="{{ t }}" {% if selected_tahun_sp2dk == t %}selected{% endif %}>{{ t }}</option>
+{% endfor %}
+</select>
+</div>
+
+<div class="col-md-2">
+<label>Tahun LHP2DK</label>
+<select name="tahun_lhp2dk" class="form-control" onchange="this.form.submit()">
+<option value="All">All</option>
+{% for t in tahun_list %}
+<option value="{{ t }}" {% if selected_tahun_lhp2dk == t %}selected{% endif %}>{{ t }}</option>
+{% endfor %}
+</select>
+</div>
+
+<div class="col-md-2">
+<label>Seksi</label>
+<select name="seksi" class="form-control" onchange="this.form.submit()">
+<option value="All">All</option>
+{% for s in seksi_list %}
+<option value="{{ s }}" {% if selected_seksi == s %}selected{% endif %}>{{ s }}</option>
+{% endfor %}
+</select>
+</div>
+
+<div class="col-md-2">
+<label>AR</label>
+<select name="ar" class="form-control" onchange="this.form.submit()">
+<option value="All">All</option>
+{% for a in ar_list %}
+<option value="{{ a }}" {% if selected_ar == a %}selected{% endif %}>{{ a }}</option>
+{% endfor %}
+</select>
+</div>
+
+<div class="col-md-4">
+<label>Kesimpulan LHP2DK</label>
+<select name="kesimpulan" class="form-control" onchange="this.form.submit()">
+<option value="All">All</option>
+<option value="selesai">Selesai</option>
+<option value="pemeriksaan">Usul Pemeriksaan</option>
+<option value="pengawasan">Dalam Pengawasan</option>
+</select>
+</div>
 
 </div>
+
 </form>
 
+<!-- TABEL -->
+<div class="card-box">
 <table class="table table-bordered">
 <thead class="table-header">
 <tr>
-<th>UNIT ORGANISASI</th>
+<th>Unit</th>
 <th>SP2DK</th>
 <th>LHP2DK</th>
-<th>SP2DK OUTSTANDING</th>
-<th>POTENSI</th>
-<th>REALISASI</th>
-<th>SUCCESS RATE</th>
+<th>Outstanding</th>
+<th>Potensi</th>
+<th>Realisasi</th>
+<th>Success Rate</th>
 </tr>
 </thead>
 
 <tbody>
-{% for r in records %}
-<tr>
-<td>{{ r.UNIT }}</td>
-<td>{{ r.SP2DK }}</td>
-<td>{{ r.LHP2DK }}</td>
-<td>{{ r.OUTSTANDING }}</td>
-<td>{{ r.POTENSI }}</td>
-<td>{{ r.REALISASI }}</td>
-<td class="success-red">
-    {{ r.SUCCESS_RATE|floatformat:2 }}%
+
+{% for s in seksi_summary %}
+<tr style="background:#e8eefc; font-weight:bold">
+<td onclick="toggle('{{ s.unit_kerja|slugify }}')" style="cursor:pointer">
++ {{ s.unit_kerja }}
+</td>
+<td>{{ s.sp2dk|default:0 }}</td>
+<td>{{ s.lhp2dk|default:0 }}</td>
+<td>{{ s.outstanding|default:0 }}</td>
+<td>Rp {{ s.potensi|floatformat:0|intcomma }}</td>
+<td>Rp {{ s.realisasi|floatformat:0|intcomma }}</td>
+<td class="
+{% if s.success_rate < 50 %}low
+{% elif s.success_rate < 80 %}mid
+{% else %}high
+{% endif %}
+">
+{{ s.success_rate }}%
 </td>
 </tr>
+
+{% for d in ar_detail %}
+{% if d.unit_kerja == s.unit_kerja %}
+<tr class="{{ s.unit_kerja|slugify }}" style="display:none">
+<td>&nbsp;&nbsp;&nbsp;→ {{ d.petugas_pengawasan }}</td>
+<td>{{ d.sp2dk }}</td>
+<td>{{ d.lhp2dk }}</td>
+<td>{{ d.outstanding }}</td>
+<td>Rp {{ d.potensi|floatformat:0|intcomma }}</td>
+<td>Rp {{ d.realisasi|floatformat:0|intcomma }}</td>
+<td></td>
+</tr>
+{% endif %}
 {% endfor %}
+
+{% endfor %}
+
 </tbody>
 </table>
+</div>
+
+<br>
 
 <div class="row">
+
 <div class="col-md-6">
-<h5 class="text-center">KESIMPULAN LHP2DK</h5>
+<div class="card-box">
+<h6 class="text-center">KESIMPULAN LHP2DK</h6>
 <canvas id="pie"></canvas>
+</div>
 </div>
 
 <div class="col-md-6">
-<h5 class="text-center">SP2DK TERBIT PER BULAN</h5>
+<div class="card-box">
+<h6 class="text-center">SP2DK TERBIT PER BULAN</h6>
 <canvas id="bar"></canvas>
+</div>
 </div>
 
 </div>
@@ -133,26 +213,33 @@ body{
 </div>
 
 <script>
+function toggle(cls){
+  const rows = document.getElementsByClassName(cls);
+  for(let i=0;i<rows.length;i++){
+    rows[i].style.display = rows[i].style.display === "none" ? "" : "none";
+  }
+}
+
 new Chart(document.getElementById("pie"),{
-    type:'pie',
-    data:{
-        labels: {{ pie_labels|safe }},
-        datasets:[{
-            data: {{ pie_values|safe }}
-        }]
-    }
+  type:'pie',
+  data:{
+    labels: {{ pie_labels|safe }},
+    datasets:[{ data: {{ pie_values|safe }} }]
+  }
 });
 
 new Chart(document.getElementById("bar"),{
-    type:'bar',
-    data:{
-        labels: {{ bulan|safe }},
-        datasets:[{
-            data: {{ sp2dk_bulanan|safe }}
-        }]
-    }
+  type:'bar',
+  data:{
+    labels: {{ bar_labels|safe }},
+    datasets:[{ data: {{ bar_values|safe }} }]
+  }
 });
 </script>
-
+<style>
+.low{color:red;font-weight:bold;}
+.mid{color:orange;font-weight:bold;}
+.high{color:green;font-weight:bold;}
+</style>
 </body>
 </html>

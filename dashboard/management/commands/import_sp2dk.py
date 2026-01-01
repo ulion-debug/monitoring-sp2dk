@@ -1,45 +1,119 @@
+import csv
+import os
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from dashboard.models import SP2DK
-from django.conf import settings
-import pandas as pd
-import os
+from decimal import Decimal
+
+
+def to_int(value):
+    """
+    Bersihkan nilai integer:
+    - kosong -> 0
+    - '1. ' -> 1
+    - '1.234' -> 1234
+    """
+    if value is None:
+        return 0
+
+    value = str(value).strip()
+
+    if value == "":
+        return 0
+
+    # hapus titik pemisah ribuan
+    value = value.replace(".", "")
+
+    # hapus koma
+    value = value.replace(",", "")
+
+    try:
+        return int(value)
+    except:
+        return 0
+
+
+def to_decimal(value):
+    """
+    Bersihkan nilai desimal:
+    - kosong -> 0
+    - 1.234.567 -> 1234567
+    - 1,23E+09 -> 1230000000
+    """
+    if value is None:
+        return 0
+
+    value = str(value).strip()
+
+    if value == "":
+        return 0
+
+    # format ilmiah 1.23E+09
+    if "E" in value or "e" in value:
+        try:
+            return Decimal(float(value))
+        except:
+            return 0
+
+    # hapus pemisah ribuan
+    value = value.replace(".", "").replace(",", "")
+
+    try:
+        return Decimal(value)
+    except:
+        return 0
+
 
 
 class Command(BaseCommand):
-    help = "Import SP2DK 2025 dari file Excel"
+    help = "Import SP2DK dari dashboard/data/dpp_2025.csv"
 
-    def handle(self, *args, **kwargs):
+    def handle(self, *args, **options):
 
-        file_path = os.path.join(settings.BASE_DIR, "dashboard", "data", "sp2dk_terbit_2025.xlsx")
+        file_path = os.path.join(settings.BASE_DIR, "dashboard", "data", "dpp_2025.csv")
 
-        df = pd.read_excel(file_path)
+        self.stdout.write(f"Membaca file: {file_path}")
 
-        # normalisasi nama kolom
-        df.columns = df.columns.str.strip().str.upper()
+        with open(file_path, newline='', encoding="utf-8-sig") as f:
 
-        # debug: tampilkan kolom
-        print("KOLUMNYA:")
-        print(df.columns)
+            reader = csv.DictReader(f, delimiter=";")
 
-        # kosongkan data lama
-        SP2DK.objects.all().delete()
+            for row in reader:
 
-        for _, row in df.iterrows():
+                SP2DK.objects.create(
 
-            SP2DK.objects.create(
-                nama_wp=row.get("NAMA"),
-                nama_ar=row.get("NAMA AR"),
+                    no=to_int(row.get("NO")),
+                    npwp=row.get("NPWP"),
+                    nama_wp=row.get("Nama WP"),
+                    unit_kerja=row.get("Unit Kerja"),
+                    petugas_pengawasan=row.get("Petugas Pengawasan"),
+                    tahun_pajak=to_int(row.get("Tahun Pajak")),
 
-                sp2dk_nomor=row.get("SP2DK NOMOR"),
-                sp2dk_tanggal=row.get("SP2DK TANGGAL"),
-                tahun=row.get("TAHUN"),
+                    nilai_potensi_lha=to_decimal(row.get("Nilai Potensi LHA")),
+                    nilai_data_pemicu=to_decimal(row.get("Nilai Data Pemicu")),
+                    nilai_potensi_analisis_mandiri=to_decimal(row.get("Nilai Potensi Analisis Mandiri")),
 
-                potensi=row.get("ESTIMASI POTENSI"),
+                    estimasi_lha_mandiri=to_decimal(row.get("Penghitungan Estimasi Potensi LHA dan Analisis Mandiri")),
+                    estimasi_data_lain=to_decimal(row.get("Penghitungan Estimasi Potensi Data Pemicu dan/atau Data Lainnya")),
 
-                lhp2dk_nomor=row.get("LHP2DK NOMOR"),
-                lhp2dk_tanggal=row.get("LHP2DK TANGGAL"),
-                kesimpulan=row.get("KESIMPULAN"),
-                realisasi=row.get("REALISASI"),
-            )
+                    total_estimasi_dpp=to_decimal(row.get("Total Estimasi Potensi DPP")),
 
-        self.stdout.write(self.style.SUCCESS("✔ Import Excel SP2DK selesai"))
+                    jumlah_sp2dk=to_int(row.get("Jumlah SP2DK")),
+                    nilai_potensi_awal_sp2dk=to_decimal(row.get("Nilai Potensi Awal SP2DK")),
+
+                    jumlah_lhp2dk_selesai=to_int(row.get("Jumlah LHP2DK Selesai")),
+                    nilai_lhp2dk_selesai=to_decimal(row.get("Nilai Potensi Akhir LHP2DK Selesai")),
+
+                    jumlah_usul_pemeriksaan=to_int(row.get("Jumlah LHP2DK Usulan Pemeriksaan")),
+                    nilai_usul_pemeriksaan=to_decimal(row.get("Nilai Potensi Akhir LHP2DK Usulan Pemeriksaan")),
+
+                    jumlah_usul_bukper=to_int(row.get("Jumlah LHP2DK Usulan Bukper")),
+                    nilai_usul_bukper=to_decimal(row.get("Nilai Potensi Akhir LHP2DK Usulan Bukper")),
+
+                    jumlah_dalam_pengawasan=to_int(row.get("Jumlah LHP2DK Dalam Pengawasan")),
+                    nilai_dalam_pengawasan=to_decimal(row.get("Nilai Potensi Akhir LHP2DK Dalam Pengawasan")),
+
+                    realisasi=to_decimal(row.get("Realisasi")),
+                )
+
+        self.stdout.write(self.style.SUCCESS("Import selesai"))

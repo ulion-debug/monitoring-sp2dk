@@ -2,9 +2,10 @@ from django.shortcuts import render, redirect
 import requests
 
 from .models import SP2DK
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, F
+from django.shortcuts import render, redirect
 from django.db.models.functions import ExtractMonth
-
+from calendar import month_name
 
 API_LOGIN_URL = "http://127.0.0.1:8001/login"
 API_ME_URL = "http://127.0.0.1:8001/me"
@@ -41,78 +42,108 @@ def logout_view(request):
 
 def dashboard(request):
 
-    token = request.session.get("token")
-    if not token:
-        return redirect("login")
-
-    auth_res = requests.get(
-        API_ME_URL,
-        headers={"Authorization": f"Bearer {token}"}
-    )
-
-    if auth_res.status_code != 200:
-        return redirect("login")
-
+    # === FILTER ===
+    tahun_sp2dk = request.GET.get("tahun_sp2dk", "All")
     seksi = request.GET.get("seksi", "All")
-    kesimpulan = request.GET.get("kesimpulan", "All")
-    
+    ar = request.GET.get("ar", "All")
+
     qs = SP2DK.objects.all()
 
+    if tahun_sp2dk != "All":
+        qs = qs.filter(tahun_pajak=tahun_sp2dk)
+
     if seksi != "All":
-        qs = qs.filter(nama_ar=seksi)
+        qs = qs.filter(unit_kerja=seksi)
 
-    if kesimpulan != "All":
-        qs = qs.filter(kesimpulan=kesimpulan)
+    if ar != "All":
+        qs = qs.filter(petugas_pengawasan=ar)
 
-    records = [
-        {
-            "NAMA_WP": q.nama_wp,
-            "NAMA_AR": q.nama_ar,
-
-            "SP2DK_NOMOR": q.sp2dk_nomor,
-            "SP2DK_TANGGAL": q.sp2dk_tanggal,
-            "TAHUN": q.tahun,
-
-            "POTENSI": q.potensi,
-            "OUTSTANDING": q.outstanding,
-
-            "LHP2DK_NOMOR": q.lhp2dk_nomor,
-            "LHP2DK_TANGGAL": q.lhp2dk_tanggal,
-            "KESIMPULAN": q.kesimpulan,
-
-            "REALISASI": q.realisasi,
-
-            "SUCCESS_RATE": q.success_rate(),
-        }
-        for q in qs
-    ]
-
-
-    seksi_list = SP2DK.objects.values_list("nama_ar", flat=True).distinct()
-    kesimpulan_list = SP2DK.objects.values_list("kesimpulan", flat=True).distinct()
-
-    pie = qs.values("kesimpulan").annotate(total=Count("id"))
-    pie_labels = [p["kesimpulan"] for p in pie]
-    pie_values = [p["total"] for p in pie]
-
-    month_data = (
-        qs.annotate(bulan=ExtractMonth("sp2dk_tanggal"))
-        .values("bulan")
-        .annotate(jumlah=Count("id"))
-        .order_by("bulan")
+    # =========================
+    #  RINGKASAN PER SEKSI
+    # =========================
+    seksi_summary = (
+        qs.values("unit_kerja")
+        .annotate(
+            sp2dk=Sum("jumlah_sp2dk"),
+            lhp2dk=Sum("jumlah_lhp2dk_selesai"),
+            outstanding=Sum("jumlah_sp2dk") - Sum("jumlah_lhp2dk_selesai"),
+            potensi=Sum("total_estimasi_dpp"),
+            realisasi=Sum("realisasi"),
+        )
+        .order_by("unit_kerja")
     )
 
-    bulan = [m["bulan"] for m in month_data]
-    sp2dk_bulanan = [m["jumlah"] for m in month_data]
+    # konversi ke list supaya bisa diedit nilainya
+    seksi_summary = list(seksi_summary)
+
+    for s in seksi_summary:
+        pot = s["potensi"] or 0
+        real = s["realisasi"] or 0
+
+        if pot and pot != 0:
+            s["success_rate"] = round((real / pot) * 100, 2)
+        else:
+            s["success_rate"] = 0
+
+    # =========================
+    #  DETAIL PER AR
+    # =========================
+    ar_detail = (
+        qs.values("unit_kerja", "petugas_pengawasan")
+        .annotate(
+            sp2dk=Sum("jumlah_sp2dk"),
+            lhp2dk=Sum("jumlah_lhp2dk_selesai"),
+            outstanding=Sum("jumlah_sp2dk") - Sum("jumlah_lhp2dk_selesai"),
+            potensi=Sum("total_estimasi_dpp"),
+            realisasi=Sum("realisasi"),
+        )
+        .order_by("unit_kerja", "petugas_pengawasan")
+    )
+
+    # =========================
+    # DROPDOWN DATA
+    # =========================
+    tahun_list = SP2DK.objects.values_list("tahun_pajak", flat=True).distinct()
+    seksi_list = SP2DK.objects.values_list("unit_kerja", flat=True).distinct()
+    ar_list = SP2DK.objects.values_list("petugas_pengawasan", flat=True).distinct()
+
+    # =========================
+    # PIE CHART
+    # =========================
+    selesai = qs.aggregate(s=Sum("jumlah_lhp2dk_selesai"))["s"] or 0
+    pemeriksaan = qs.aggregate(s=Sum("jumlah_usul_pemeriksaan"))["s"] or 0
+    pengawasan = qs.aggregate(s=Sum("jumlah_dalam_pengawasan"))["s"] or 0
+
+    pie_labels = ["Selesai", "Usul Pemeriksaan", "Dalam Pengawasan"]
+    pie_values = [selesai, pemeriksaan, pengawasan]
+
+    # =========================
+    # BAR CHART PER TAHUN
+    # =========================
+    bar_data = (
+        qs.values("tahun_pajak")
+        .annotate(jumlah=Sum("jumlah_sp2dk"))
+        .order_by("tahun_pajak")
+    )
+
+    bar_labels = [x["tahun_pajak"] for x in bar_data]
+    bar_values = [x["jumlah"] for x in bar_data]
 
     return render(request, "dashboard/index.html", {
-        "records": records,
+        "seksi_summary": seksi_summary,
+        "ar_detail": ar_detail,
+
+        "tahun_list": tahun_list,
         "seksi_list": seksi_list,
-        "kesimpulan_list": kesimpulan_list,
+        "ar_list": ar_list,
+
+        "selected_tahun_sp2dk": tahun_sp2dk,
+        "selected_seksi": seksi,
+        "selected_ar": ar,
+
         "pie_labels": pie_labels,
         "pie_values": pie_values,
-        "bulan": bulan,
-        "sp2dk_bulanan": sp2dk_bulanan,
-        "selected_seksi": seksi,
-        "selected_kesimpulan": kesimpulan,
+
+        "bar_labels": bar_labels,
+        "bar_values": bar_values,
     })
