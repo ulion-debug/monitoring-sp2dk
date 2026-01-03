@@ -43,3 +43,27 @@ class SP2DK(models.Model):
 
     def __str__(self):
         return self.nama_wp or "-"
+
+class SP2DKClosed(models.Model):
+    nip_ar = models.CharField(max_length=50, null=True, blank=True)
+    nama_ar = models.CharField(max_length=255, null=True, blank=True)
+    npwp = models.CharField(max_length=50, null=True, blank=True)
+    nama_wp = models.CharField(max_length=255, null=True, blank=True)
+    nomor_lhp2dk = models.CharField(max_length=100, null=True, blank=True)
+    tanggal_lhp2dk = models.DateField(null=True, blank=True)
+    nomor_sp2dk = models.CharField(max_length=100, null=True, blank=True)
+    tanggal_sp2dk = models.DateField(null=True, blank=True)
+    tahun_sp2dk = models.IntegerField(null=True, blank=True)
+    estimasi_potensi_sp2dk = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
+    kesimpulan = models.CharField(max_length=50, null=True, blank=True)
+    estimasi_potensi_lhp2dk = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
+    realisasi = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
+    nomor_dspp = models.CharField(max_length=100, null=True, blank=True)
+    tanggal_dspp = models.DateField(null=True, blank=True)
+    nomor_np2 = models.CharField(max_length=100, null=True, blank=True)
+    tanggal_np2 = models.DateField(null=True, blank=True)
+    nomor_sp2 = models.CharField(max_length=100, null=True, blank=True)
+    tanggal_sp2 = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.nama_wp} - {self.nomor_sp2dk}"

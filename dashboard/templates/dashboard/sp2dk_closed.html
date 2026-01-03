@@ -1,0 +1,185 @@
+{% load humanize static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>MONITORING SP2DK</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
+<style>
+
+body{
+    background:#eef1f4;
+    font-family:Arial;
+}
+
+.header{
+    background:#f7c81e;
+    padding:15px;
+    font-size:28px;
+    font-weight:bold;
+    text-align:center;
+}
+
+/* Sidebar */
+.sidebar{
+    width:130px;
+    background:white;
+    position:fixed;
+    top:0;
+    bottom:0;
+    padding-top:130px;
+    border-right:1px solid #ddd;
+}
+
+.sidebar-item{
+    padding:12px;
+    font-weight:bold;
+    cursor:pointer;
+    text-align:center;
+}
+
+.sidebar-item a{
+    text-decoration:none;
+    color:black;
+}
+
+.sidebar-item:hover{
+    background:#f7c81e;
+}
+
+/* Konten */
+.content{
+    margin-left:150px;
+    padding:15px;
+}
+
+.card-box{
+    background:white;
+    padding:12px;
+    border-radius:10px;
+    box-shadow:0 3px 6px rgba(0,0,0,.1);
+}
+
+.table-header{
+    background:#0a2d82;
+    color:white;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">MONITORING SP2DK</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <div class="sidebar-item"><a href="/">RINGKASAN</a></div>
+    <div class="sidebar-item" style="background:#f7c81e"><a href="/sp2dk-closed/">CLOSED</a></div>
+    <div class="sidebar-item"><a href="#">OUTSTANDING</a></div>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+<h4><b>SP2DK CLOSED</b></h4>
+
+<!-- FILTER -->
+<form method="get" class="card-box mb-3">
+
+<div class="row">
+
+<div class="col-md-3">
+<label><b>Tahun SP2DK</b></label>
+<select name="tahun" class="form-control" onchange="this.form.submit()">
+<option value="All">All</option>
+{% for t in tahun_list %}
+<option value="{{ t }}" {% if selected_tahun == t %}selected{% endif %}>{{ t }}</option>
+{% endfor %}
+</select>
+</div>
+
+<div class="col-md-3">
+<label><b>AR</b></label>
+<select name="ar" class="form-control" onchange="this.form.submit()">
+<option value="All">All</option>
+{% for a in ar_list %}
+<option value="{{ a }}" {% if selected_ar == a %}selected{% endif %}>{{ a }}</option>
+{% endfor %}
+</select>
+</div>
+
+<div class="col-md-3">
+<label><b>Kesimpulan</b></label>
+<select name="kesimpulan" class="form-control" onchange="this.form.submit()">
+<option value="All">All</option>
+<option value="Selesai">Selesai</option>
+<option value="Dalam Pengawasan">Dalam Pengawasan</option>
+<option value="Usul Pemeriksaan">Usul Pemeriksaan</option>
+</select>
+</div>
+
+</div>
+
+</form>
+
+<!-- TABLE -->
+<div class="card-box">
+
+<table class="table table-bordered table-sm">
+<thead class="table-header">
+<tr>
+<th>NIP AR</th>
+<th>Nama AR</th>
+<th>NPWP</th>
+<th>Nama WP</th>
+<th>Nomor SP2DK</th>
+<th>Tanggal SP2DK</th>
+<th>Tahun SP2DK</th>
+<th>Estimasi Potensi SP2DK</th>
+<th>Nomor LHP2DK</th>
+<th>Tanggal LHP2DK</th>
+<th>Kesimpulan</th>
+<th>Estimasi Potensi LHP2DK</th>
+<th>Realisasi</th>
+</tr>
+</thead>
+
+<tbody>
+
+{% for d in data %}
+<tr>
+<td>{{ d.nip_ar }}</td>
+<td>{{ d.nama_ar }}</td>
+<td>{{ d.npwp }}</td>
+<td>{{ d.nama_wp }}</td>
+<td>{{ d.nomor_sp2dk }}</td>
+<td>{{ d.tanggal_sp2dk }}</td>
+<td>{{ d.tahun_sp2dk }}</td>
+<td>Rp {{ d.estimasi_potensi_sp2dk|floatformat:0|intcomma }}</td>
+<td>{{ d.nomor_lhp2dk }}</td>
+<td>{{ d.tanggal_lhp2dk }}</td>
+<td>{{ d.kesimpulan }}</td>
+<td>Rp {{ d.estimasi_potensi_lhp2dk|default:0|floatformat:0|intcomma }}</td>
+<td>Rp {{ d.realisasi|default:0|floatformat:0|intcomma }}</td>
+</tr>
+{% empty %}
+<tr><td colspan="13" class="text-center">Tidak ada data</td></tr>
+{% endfor %}
+
+</tbody>
+</table>
+
+</div>
+
+<br>
+
+<h5><b>Total Potensi:</b> Rp {{ total_potensi|floatformat:0|intcomma }}</h5>
+<h5><b>Total Realisasi:</b> Rp {{ total_realisasi|floatformat:0|intcomma }}</h5>
+
+</div>
+
+</body>
+</html>
