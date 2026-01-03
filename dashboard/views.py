@@ -170,21 +170,14 @@ def sp2dk_closed(request):
         "sp2_nomor",
         "sp2_tanggal",
     ]
-
-    # =========================
-    # NORMALISASI DATA
-    # =========================
-
-    # Tahun harus numerik & utuh
+    
     df["tahun_sp2dk"] = (
         pd.to_numeric(df["tahun_sp2dk"], errors="coerce")
         .astype("Int64")
     )
 
-    # Hilangkan spasi AR
     df["nama_ar"] = df["nama_ar"].astype(str).str.strip()
 
-    # Kolom tanggal → string aman
     date_cols = [
         "lhpt_tanggal",
         "tanggal_sp2dk",
@@ -201,7 +194,6 @@ def sp2dk_closed(request):
             .fillna("")
         )
 
-    # Kolom uang → numeric
     money_cols = [
         "estimasi_potensi_sp2dk",
         "estimasi_potensi_lhp2dk",
@@ -215,22 +207,12 @@ def sp2dk_closed(request):
             .astype(float)
         )
 
-    # =========================
-    # DROPDOWN (DARI SEMUA DATA)
-    # =========================
     tahun_list = sorted(df["tahun_sp2dk"].dropna().unique().tolist())
     ar_list = sorted(df["nama_ar"].dropna().unique().tolist())
 
-    # =========================
-    # AMBIL PARAMETER FILTER
-    # =========================
     tahun = request.GET.get("tahun", "All")
     ar = request.GET.get("ar", "All")
     kesimpulan = request.GET.get("kesimpulan", "All")
-
-    # =========================
-    # FILTER BENAR
-    # =========================
     df_filtered = df.copy()
 
     if tahun != "All" and tahun != "" and tahun is not None:
@@ -243,15 +225,9 @@ def sp2dk_closed(request):
         df_filtered = df_filtered[df_filtered["kesimpulan"] == kesimpulan]
 
 
-    # =========================
-    # HITUNG TOTAL
-    # =========================
     total_potensi = df_filtered["estimasi_potensi_sp2dk"].sum()
     total_realisasi = df_filtered["realisasi"].sum()
 
-    # =========================
-    # KE TEMPLATE
-    # =========================
     data = df_filtered.to_dict(orient="records")
 
     return render(request, "dashboard/sp2dk_closed.html", {
