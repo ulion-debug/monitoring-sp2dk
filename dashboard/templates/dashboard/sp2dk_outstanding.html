@@ -1,0 +1,254 @@
+{% load humanize static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>MONITORING SP2DK</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
+<style>
+
+body{
+    background:#eef1f4;
+    font-family:Arial;
+}
+
+.header{
+    background:#f7c81e;
+    padding:15px;
+    font-size:28px;
+    font-weight:bold;
+    text-align:center;
+}
+
+/* Sidebar */
+.sidebar{
+    width:130px;
+    background:white;
+    position:fixed;
+    top:0;
+    bottom:0;
+    padding-top:130px;
+    border-right:1px solid #ddd;
+}
+
+.sidebar-item{
+    padding:12px;
+    font-weight:bold;
+    cursor:pointer;
+    text-align:center;
+}
+
+.sidebar-item a{
+    text-decoration:none;
+    color:black;
+}
+
+.sidebar-item:hover{
+    background:#f7c81e;
+}
+
+.content{
+    margin-left:150px;
+    padding:15px;
+}
+
+.card-box{
+    background:white;
+    padding:12px;
+    border-radius:10px;
+    box-shadow:0 3px 6px rgba(0,0,0,.1);
+}
+
+.table-header{
+    background:#0a2d82;
+    color:white;
+}
+
+.pagination .page-item .page-link{
+    border-radius: 8px;
+    margin: 2px;
+    color:#0a2d82;
+    font-weight:600;
+    border:1px solid #dcdcdc;
+    min-width: 36px;
+    text-align:center;
+}
+
+.pagination .page-item .page-link:hover{
+    background:#f7c81e;
+    border-color:#f7c81e;
+    color:black;
+}
+
+.pagination .page-item.active .page-link{
+    background:#0a2d82;
+    color:white;
+    border-color:#0a2d82;
+}
+
+.pagination .page-item.disabled .page-link{
+    color:#aaa;
+    background:#f3f3f3;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">MONITORING SP2DK</div>
+<div class="sidebar">
+    <div class="sidebar-item"><a href="/">RINGKASAN</a></div>
+    <div class="sidebar-item"><a href="/sp2dk-closed/">CLOSED</a></div>
+    <div class="sidebar-item" style="background:#f7c81e"><a href="/sp2dk-outstanding/">OUTSTANDING</a></div>
+</div>
+
+<div class="content">
+
+<h4><b>SP2DK OUTSTANDING</b></h4>
+<form method="get" class="card-box mb-3">
+
+<div class="row">
+
+<div class="col-md-3">
+<label><b>Tahun SP2DK</b></label>
+<select name="tahun" class="form-control" onchange="this.form.submit()">
+<option value="All">All</option>
+{% for t in tahun_list %}
+<option value="{{ t }}" {% if selected_tahun == t|stringformat:"s" %}selected{% endif %}>{{ t }}</option>
+{% endfor %}
+</select>
+</div>
+
+<div class="col-md-3">
+<label><b>AR</b></label>
+<select name="ar" class="form-control" onchange="this.form.submit()">
+<option value="All">All</option>
+{% for a in ar_list %}
+<option value="{{ a }}" {% if selected_ar == a %}selected{% endif %}>{{ a }}</option>
+{% endfor %}
+</select>
+</div>
+
+</div>
+</form>
+
+<div class="card-box">
+
+<table class="table table-bordered table-sm">
+<thead class="table-header">
+<tr>
+<th>NIP AR</th>
+<th>Nama AR</th>
+<th>NPWP</th>
+<th>Nama WP</th>
+<th>Nomor SP2DK</th>
+<th>Tanggal SP2DK</th>
+<th>Tahun SP2DK</th>
+<th>Estimasi Potensi</th>
+<th>Realisasi</th>
+</tr>
+</thead>
+
+<tbody>
+
+{% for d in data %}
+<tr>
+<td>{{ d.nip_ar }}</td>
+<td>{{ d.nama_ar }}</td>
+<td>{{ d.npwp }}</td>
+<td>{{ d.nama_wp }}</td>
+
+<td>{{ d.nomor_sp2dk|default:"-" }}</td>
+<td>{{ d.tanggal_sp2dk|default:"-" }}</td>
+
+<td>{{ d.tahun_sp2dk }}</td>
+
+<td>Rp {{ d.estimasi_potensi_sp2dk|default:0|floatformat:0|intcomma }}</td>
+<td>Rp {{ d.realisasi|default:0|floatformat:0|intcomma }}</td>
+</tr>
+
+{% empty %}
+<tr><td colspan="10" class="text-center">Tidak ada data</td></tr>
+{% endfor %}
+
+</tbody>
+</table>
+</div>
+<br>
+<h5><b>Total Potensi:</b> Rp {{ total_potensi|floatformat:0|intcomma }}</h5>
+<h5><b>Total Realisasi:</b> Rp {{ total_realisasi|floatformat:0|intcomma }}</h5>
+<br>
+
+<nav>
+<ul class="pagination justify-content-center">
+
+    {% if data.has_previous %}
+    <li class="page-item">
+        <a class="page-link"
+           href="?page={{ data.previous_page_number }}&tahun={{ selected_tahun }}&ar={{ selected_ar }}&kesimpulan={{ selected_kesimpulan }}">
+            « Prev
+        </a>
+    </li>
+    {% else %}
+    <li class="page-item disabled"><span class="page-link">« Prev</span></li>
+    {% endif %}
+
+    {% if data.number > 3 %}
+        <li class="page-item">
+            <a class="page-link"
+               href="?page=1&tahun={{ selected_tahun }}&ar={{ selected_ar }}&kesimpulan={{ selected_kesimpulan }}">
+                1
+            </a>
+        </li>
+        {% if data.number > 4 %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+    {% endif %}
+
+    {# Pages around current #}
+    {% for num in data.paginator.page_range %}
+        {% if num >= data.number|add:'-2' and num <= data.number|add:'2' %}
+            {% if num == data.number %}
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% else %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="?page={{ num }}&tahun={{ selected_tahun }}&ar={{ selected_ar }}&kesimpulan={{ selected_kesimpulan }}">
+                        {{ num }}
+                    </a>
+                </li>
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+
+    {% if data.number < data.paginator.num_pages|add:'-2' %}
+        {% if data.number < data.paginator.num_pages|add:'-3' %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+        <li class="page-item">
+            <a class="page-link"
+               href="?page={{ data.paginator.num_pages }}&tahun={{ selected_tahun }}&ar={{ selected_ar }}&kesimpulan={{ selected_kesimpulan }}">
+                {{ data.paginator.num_pages }}
+            </a>
+        </li>
+    {% endif %}
+
+    {% if data.has_next %}
+    <li class="page-item">
+        <a class="page-link"
+           href="?page={{ data.next_page_number }}&tahun={{ selected_tahun }}&ar={{ selected_ar }}&kesimpulan={{ selected_kesimpulan }}">
+            Next »
+        </a>
+    </li>
+    {% else %}
+    <li class="page-item disabled"><span class="page-link">Next »</span></li>
+    {% endif %}
+
+</ul>
+</nav>
+</div>
+</body>
+</html>

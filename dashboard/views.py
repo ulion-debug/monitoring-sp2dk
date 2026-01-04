@@ -244,3 +244,86 @@ def sp2dk_closed(request):
 
         "page_obj": page_obj,
     })
+    
+def sp2dk_outstanding(request):
+
+    file_prev = os.path.join(settings.BASE_DIR, "dashboard/data/sp2dk_terbit_2024.xlsx")
+    file_now  = os.path.join(settings.BASE_DIR, "dashboard/data/sp2dk_terbit_2025.xlsx")
+
+    df_prev = pd.read_excel(file_prev, header=None, skiprows=5, usecols=range(23))
+    df_now  = pd.read_excel(file_now,  header=None, skiprows=5, usecols=range(23))
+
+    cols = [
+        "no","npwp","nama_wp","nip_ar","nama_ar",
+        "lhpt_nomor","lhpt_tanggal",
+        "nomor_sp2dk","tanggal_sp2dk","tahun_sp2dk",
+        "estimasi_potensi_sp2dk",
+        "nomor_lhp2dk","tanggal_lhp2dk",
+        "keputusan","kesimpulan",
+        "estimasi_potensi_lhp2dk","realisasi",
+        "dspp_nomor","dspp_tanggal",
+        "np2_nomor","np2_tanggal",
+        "sp2_nomor","sp2_tanggal",
+    ]
+
+    df_prev.columns = cols
+    df_now.columns  = cols
+    df = df_prev.copy()
+
+    df_now_filtered = df_now[df_now["nomor_sp2dk"].isna()]
+
+    df = pd.concat([df, df_now_filtered], ignore_index=True)
+
+    df["tahun_sp2dk"] = pd.to_numeric(df["tahun_sp2dk"], errors="coerce").astype("Int64")
+    df["nama_ar"] = df["nama_ar"].astype(str).str.strip()
+
+    money_cols = ["estimasi_potensi_sp2dk","realisasi"]
+    for c in money_cols:
+        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+
+    tahun = request.GET.get("tahun","All")
+    ar    = request.GET.get("ar","All")
+    seksi = request.GET.get("seksi","All")
+
+    if tahun != "All":
+        df = df[df["tahun_sp2dk"] == int(tahun)]
+
+    if ar != "All":
+        df = df[df["nama_ar"] == ar]
+
+    if seksi != "All":
+        df = df[df["nip_ar"].str.startswith(seksi)]
+
+    tahun_list = sorted(df["tahun_sp2dk"].dropna().unique().tolist())
+    ar_list    = sorted(df["nama_ar"].dropna().unique().tolist())
+    
+    cols_text = [
+        "nomor_sp2dk",
+        "tanggal_sp2dk",
+        "nomor_lhp2dk",
+        "tanggal_lhp2dk",
+        "lhpt_nomor",
+        "lhpt_tanggal",
+    ]
+    for c in cols_text:
+        df[c] = df[c].fillna("-")
+
+    data_list = df.to_dict(orient="records")
+    paginator = Paginator(data_list, 15)
+    page = request.GET.get("page", 1)
+    data_page = paginator.get_page(page)
+
+    total_potensi = df["estimasi_potensi_sp2dk"].sum()
+    total_realisasi = df["realisasi"].sum()
+
+    return render(request,"dashboard/sp2dk_outstanding.html",{
+        "data": data_page,
+        "tahun_list": tahun_list,
+        "ar_list": ar_list,
+
+        "selected_tahun": tahun,
+        "selected_ar": ar,
+
+        "total_potensi": total_potensi,
+        "total_realisasi": total_realisasi,
+    })
