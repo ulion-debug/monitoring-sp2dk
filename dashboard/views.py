@@ -62,7 +62,6 @@ def dashboard(request):
     if ar != "All":
         qs = qs.filter(petugas_pengawasan=ar)
 
-    # ====== RINGKASAN PER SEKSI ======
     seksi_summary = (
         qs.values("unit_kerja")
         .annotate(
@@ -82,7 +81,6 @@ def dashboard(request):
         real = s["realisasi"] or 0
         s["success_rate"] = round((real / pot) * 100, 2) if pot else 0
 
-    # ====== DETAIL PER AR ======
     ar_detail = (
         qs.values("unit_kerja", "petugas_pengawasan")
         .annotate(
@@ -95,12 +93,10 @@ def dashboard(request):
         .order_by("unit_kerja", "petugas_pengawasan")
     )
 
-    # ====== DROPDOWN DATA ======
     tahun_list = SP2DK.objects.values_list("tahun_pajak", flat=True).distinct()
     seksi_list = SP2DK.objects.values_list("unit_kerja", flat=True).distinct()
     ar_list = SP2DK.objects.values_list("petugas_pengawasan", flat=True).distinct()
 
-    # ====== GRAFIK ======
     selesai = qs.aggregate(s=Sum("jumlah_lhp2dk_selesai"))["s"] or 0
     pemeriksaan = qs.aggregate(s=Sum("jumlah_usul_pemeriksaan"))["s"] or 0
     pengawasan = qs.aggregate(s=Sum("jumlah_dalam_pengawasan"))["s"] or 0
@@ -117,13 +113,12 @@ def dashboard(request):
     bar_labels = [x["tahun_pajak"] for x in bar_data]
     bar_values = [x["jumlah"] for x in bar_data]
 
-    # ====== PAGINATION SEKSI ======
-    paginator = Paginator(seksi_summary, 7)   # <=== jumlah baris per halaman
+    paginator = Paginator(seksi_summary, 7)
     page_number = request.GET.get("page")
     seksi_page = paginator.get_page(page_number)
 
     return render(request, "dashboard/index.html", {
-        "seksi_summary": seksi_page,     # penting!
+        "seksi_summary": seksi_page,
         "ar_detail": ar_detail,
 
         "tahun_list": tahun_list,
@@ -140,7 +135,7 @@ def dashboard(request):
         "bar_labels": bar_labels,
         "bar_values": bar_values,
 
-        "page_obj": seksi_page,         # untuk template
+        "page_obj": seksi_page,
     })
 
 def sp2dk_closed(request):
