@@ -10,6 +10,7 @@ from .models import SP2DKClosed
 import pandas as pd
 from django.conf import settings
 import os
+from django.core.paginator import Paginator
 
 API_LOGIN_URL = "http://127.0.0.1:8001/login"
 API_ME_URL = "http://127.0.0.1:8001/me"
@@ -45,6 +46,7 @@ def logout_view(request):
 
 
 def dashboard(request):
+
     tahun_sp2dk = request.GET.get("tahun_sp2dk", "All")
     seksi = request.GET.get("seksi", "All")
     ar = request.GET.get("ar", "All")
@@ -60,6 +62,7 @@ def dashboard(request):
     if ar != "All":
         qs = qs.filter(petugas_pengawasan=ar)
 
+    # ====== RINGKASAN PER SEKSI ======
     seksi_summary = (
         qs.values("unit_kerja")
         .annotate(
@@ -77,12 +80,9 @@ def dashboard(request):
     for s in seksi_summary:
         pot = s["potensi"] or 0
         real = s["realisasi"] or 0
+        s["success_rate"] = round((real / pot) * 100, 2) if pot else 0
 
-        if pot and pot != 0:
-            s["success_rate"] = round((real / pot) * 100, 2)
-        else:
-            s["success_rate"] = 0
-
+    # ====== DETAIL PER AR ======
     ar_detail = (
         qs.values("unit_kerja", "petugas_pengawasan")
         .annotate(
@@ -95,17 +95,19 @@ def dashboard(request):
         .order_by("unit_kerja", "petugas_pengawasan")
     )
 
+    # ====== DROPDOWN DATA ======
     tahun_list = SP2DK.objects.values_list("tahun_pajak", flat=True).distinct()
     seksi_list = SP2DK.objects.values_list("unit_kerja", flat=True).distinct()
     ar_list = SP2DK.objects.values_list("petugas_pengawasan", flat=True).distinct()
 
+    # ====== GRAFIK ======
     selesai = qs.aggregate(s=Sum("jumlah_lhp2dk_selesai"))["s"] or 0
     pemeriksaan = qs.aggregate(s=Sum("jumlah_usul_pemeriksaan"))["s"] or 0
     pengawasan = qs.aggregate(s=Sum("jumlah_dalam_pengawasan"))["s"] or 0
 
     pie_labels = ["Selesai", "Usul Pemeriksaan", "Dalam Pengawasan"]
     pie_values = [selesai, pemeriksaan, pengawasan]
-    
+
     bar_data = (
         qs.values("tahun_pajak")
         .annotate(jumlah=Sum("jumlah_sp2dk"))
@@ -115,8 +117,13 @@ def dashboard(request):
     bar_labels = [x["tahun_pajak"] for x in bar_data]
     bar_values = [x["jumlah"] for x in bar_data]
 
+    # ====== PAGINATION SEKSI ======
+    paginator = Paginator(seksi_summary, 7)   # <=== jumlah baris per halaman
+    page_number = request.GET.get("page")
+    seksi_page = paginator.get_page(page_number)
+
     return render(request, "dashboard/index.html", {
-        "seksi_summary": seksi_summary,
+        "seksi_summary": seksi_page,     # penting!
         "ar_detail": ar_detail,
 
         "tahun_list": tahun_list,
@@ -132,6 +139,8 @@ def dashboard(request):
 
         "bar_labels": bar_labels,
         "bar_values": bar_values,
+
+        "page_obj": seksi_page,         # untuk template
     })
 
 def sp2dk_closed(request):
@@ -171,11 +180,7 @@ def sp2dk_closed(request):
         "sp2_tanggal",
     ]
     
-    df["tahun_sp2dk"] = (
-        pd.to_numeric(df["tahun_sp2dk"], errors="coerce")
-        .astype("Int64")
-    )
-
+    df["tahun_sp2dk"] = pd.to_numeric(df["tahun_sp2dk"], errors="coerce").astype("Int64")
     df["nama_ar"] = df["nama_ar"].astype(str).str.strip()
 
     date_cols = [
@@ -201,37 +206,36 @@ def sp2dk_closed(request):
     ]
 
     for col in money_cols:
-        df[col] = (
-            pd.to_numeric(df[col], errors="coerce")
-            .fillna(0)
-            .astype(float)
-        )
-
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(float)
     tahun_list = sorted(df["tahun_sp2dk"].dropna().unique().tolist())
     ar_list = sorted(df["nama_ar"].dropna().unique().tolist())
 
     tahun = request.GET.get("tahun", "All")
     ar = request.GET.get("ar", "All")
     kesimpulan = request.GET.get("kesimpulan", "All")
+
     df_filtered = df.copy()
 
-    if tahun != "All" and tahun != "" and tahun is not None:
+    if tahun != "All":
         df_filtered = df_filtered[df_filtered["tahun_sp2dk"] == int(tahun)]
 
-    if ar != "All" and ar != "" and ar is not None:
+    if ar != "All":
         df_filtered = df_filtered[df_filtered["nama_ar"] == ar]
 
-    if kesimpulan != "All" and kesimpulan != "" and kesimpulan is not None:
+    if kesimpulan != "All":
         df_filtered = df_filtered[df_filtered["kesimpulan"] == kesimpulan]
-
 
     total_potensi = df_filtered["estimasi_potensi_sp2dk"].sum()
     total_realisasi = df_filtered["realisasi"].sum()
 
     data = df_filtered.to_dict(orient="records")
 
+    page_number = request.GET.get("page", 1)
+    paginator = Paginator(data, 10)
+    page_obj = paginator.get_page(page_number)
+
     return render(request, "dashboard/sp2dk_closed.html", {
-        "data": data,
+        "data": page_obj,
 
         "tahun_list": tahun_list,
         "ar_list": ar_list,
@@ -242,4 +246,6 @@ def sp2dk_closed(request):
 
         "total_potensi": total_potensi,
         "total_realisasi": total_realisasi,
+
+        "page_obj": page_obj,
     })

@@ -66,7 +66,33 @@ body{
     background:#0a2d82;
     color:white;
 }
+/* Pagination Styling */
+.pagination .page-item .page-link{
+    border-radius: 8px;
+    margin: 2px;
+    color:#0a2d82;
+    font-weight:600;
+    border:1px solid #dcdcdc;
+    min-width: 36px;
+    text-align:center;
+}
 
+.pagination .page-item .page-link:hover{
+    background:#f7c81e;
+    border-color:#f7c81e;
+    color:black;
+}
+
+.pagination .page-item.active .page-link{
+    background:#0a2d82;
+    color:white;
+    border-color:#0a2d82;
+}
+
+.pagination .page-item.disabled .page-link{
+    color:#aaa;
+    background:#f3f3f3;
+}
 </style>
 </head>
 
@@ -96,7 +122,7 @@ body{
 <select name="tahun" class="form-control" onchange="this.form.submit()">
 <option value="All">All</option>
 {% for t in tahun_list %}
-<option value="{{ t }}" {% if selected_tahun == t %}selected{% endif %}>{{ t }}</option>
+<option value="{{ t }}" {% if selected_tahun == t|stringformat:"s" %}selected{% endif %}>{{ t }}</option>
 {% endfor %}
 </select>
 </div>
@@ -115,9 +141,9 @@ body{
 <label><b>Kesimpulan</b></label>
 <select name="kesimpulan" class="form-control" onchange="this.form.submit()">
 <option value="All">All</option>
-<option value="Selesai">Selesai</option>
-<option value="Dalam Pengawasan">Dalam Pengawasan</option>
-<option value="Usul Pemeriksaan">Usul Pemeriksaan</option>
+<option value="Selesai" {% if selected_kesimpulan == 'Selesai' %}selected{% endif %}>Selesai</option>
+<option value="Dalam Pengawasan" {% if selected_kesimpulan == 'Dalam Pengawasan' %}selected{% endif %}>Dalam Pengawasan</option>
+<option value="Usul Pemeriksaan" {% if selected_kesimpulan == 'Usul Pemeriksaan' %}selected{% endif %}>Usul Pemeriksaan</option>
 </select>
 </div>
 
@@ -158,7 +184,7 @@ body{
 <td>{{ d.nomor_sp2dk }}</td>
 <td>{{ d.tanggal_sp2dk }}</td>
 <td>{{ d.tahun_sp2dk }}</td>
-<td>Rp {{ d.estimasi_potensi_sp2dk|floatformat:0|intcomma }}</td>
+<td>Rp {{ d.estimasi_potensi_sp2dk|default:0|floatformat:0|intcomma }}</td>
 <td>{{ d.nomor_lhp2dk }}</td>
 <td>{{ d.tanggal_lhp2dk }}</td>
 <td>{{ d.kesimpulan }}</td>
@@ -178,6 +204,78 @@ body{
 
 <h5><b>Total Potensi:</b> Rp {{ total_potensi|floatformat:0|intcomma }}</h5>
 <h5><b>Total Realisasi:</b> Rp {{ total_realisasi|floatformat:0|intcomma }}</h5>
+
+<br>
+
+<nav>
+<ul class="pagination justify-content-center">
+
+    {% if data.has_previous %}
+    <li class="page-item">
+        <a class="page-link"
+           href="?page={{ data.previous_page_number }}&tahun={{ selected_tahun }}&ar={{ selected_ar }}&kesimpulan={{ selected_kesimpulan }}">
+            « Prev
+        </a>
+    </li>
+    {% else %}
+    <li class="page-item disabled"><span class="page-link">« Prev</span></li>
+    {% endif %}
+
+    {# First page always shown #}
+    {% if data.number > 3 %}
+        <li class="page-item">
+            <a class="page-link"
+               href="?page=1&tahun={{ selected_tahun }}&ar={{ selected_ar }}&kesimpulan={{ selected_kesimpulan }}">
+                1
+            </a>
+        </li>
+        {% if data.number > 4 %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+    {% endif %}
+
+    {# Pages around current #}
+    {% for num in data.paginator.page_range %}
+        {% if num >= data.number|add:'-2' and num <= data.number|add:'2' %}
+            {% if num == data.number %}
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% else %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="?page={{ num }}&tahun={{ selected_tahun }}&ar={{ selected_ar }}&kesimpulan={{ selected_kesimpulan }}">
+                        {{ num }}
+                    </a>
+                </li>
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+
+    {# Last page always shown #}
+    {% if data.number < data.paginator.num_pages|add:'-2' %}
+        {% if data.number < data.paginator.num_pages|add:'-3' %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+        <li class="page-item">
+            <a class="page-link"
+               href="?page={{ data.paginator.num_pages }}&tahun={{ selected_tahun }}&ar={{ selected_ar }}&kesimpulan={{ selected_kesimpulan }}">
+                {{ data.paginator.num_pages }}
+            </a>
+        </li>
+    {% endif %}
+
+    {% if data.has_next %}
+    <li class="page-item">
+        <a class="page-link"
+           href="?page={{ data.next_page_number }}&tahun={{ selected_tahun }}&ar={{ selected_ar }}&kesimpulan={{ selected_kesimpulan }}">
+            Next »
+        </a>
+    </li>
+    {% else %}
+    <li class="page-item disabled"><span class="page-link">Next »</span></li>
+    {% endif %}
+
+</ul>
+</nav>
 
 </div>
 
