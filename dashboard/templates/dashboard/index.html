@@ -1,6 +1,5 @@
 {% extends "dashboard/base.html" %}
 {% load humanize %}
-
 {% block content %}
 
 <h4 class="mb-3 fw-bold">Dashboard Ringkasan SP2DK</h4>
@@ -39,6 +38,16 @@
 </select>
 </div>
 
+<div class="col-md-2">
+<label>Kesimpulan</label>
+<select name="kesimpulan" class="form-control" onchange="this.form.submit()">
+    <option value="All">All</option>
+    {% for k in pie_labels %}
+        <option value="{{ k }}" {% if selected_kesimpulan == k %}selected{% endif %}>{{ k }}</option>
+    {% endfor %}
+</select>
+</div>
+
 </div>
 
 </form>
@@ -50,6 +59,7 @@
 <tr>
 <th>Unit</th>
 <th>DPP</th>
+<th>SP2DK</th>
 <th>LHP2DK</th>
 <th>Outstanding</th>
 <th>Potensi</th>
@@ -62,7 +72,8 @@
 
 {% for s in seksi_summary %}
 <tr style="background:#e8eefc; font-weight:bold">
-<td onclick="toggle('{{ s.unit_kerja|slugify }}')" style="cursor:pointer">+ {{ s.unit_kerja }}</td>
+<td onclick="toggle('{{ s.unit_kerja }}')" style="cursor:pointer">+ {{ s.unit_kerja }}</td>
+<td>{{ s.sp2dk|default:0 }}</td>
 <td>{{ s.sp2dk|default:0 }}</td>
 <td>{{ s.lhp2dk|default:0 }}</td>
 <td>{{ s.outstanding|default:0 }}</td>
@@ -76,7 +87,7 @@
 
 {% for d in ar_detail %}
 {% if d.unit_kerja == s.unit_kerja %}
-<tr class="{{ s.unit_kerja|slugify }}" style="display:none">
+<tr class="{{ s.unit_kerja }}" style="display:none">
 <td>&nbsp;&nbsp;&nbsp;→ {{ d.petugas_pengawasan }}</td>
 <td>{{ d.sp2dk }}</td>
 <td>{{ d.lhp2dk }}</td>
@@ -94,10 +105,46 @@
 </table>
 
 </div>
+<div class="row text-center">
+
+<div class="col-md-2">
+<div class="card shadow-sm p-2">
+<b>Total DPP</b>
+<h5>{{ total_dpp|intcomma }}</h5>
+</div>
+</div>
+
+<div class="col-md-2">
+<div class="card shadow-sm p-2">
+<b>Total LHP2DK</b>
+<h5>{{ total_lhp2dk|intcomma }}</h5>
+</div>
+</div>
+
+<div class="col-md-2">
+<div class="card shadow-sm p-2">
+<b>Total Outstanding</b>
+<h5>{{ total_outstanding|intcomma }}</h5>
+</div>
+</div>
+
+<div class="col-md-3">
+<div class="card shadow-sm p-2">
+<b>Total Potensi</b>
+<h5>Rp {{ total_potensi|floatformat:0|intcomma }}</h5>
+</div>
+</div>
+
+<div class="col-md-3">
+<div class="card shadow-sm p-2">
+<b>Total Realisasi</b>
+<h5>Rp {{ total_realisasi|floatformat:0|intcomma }}</h5>
+</div>
+</div>
+</div>
 
 <br>
 
-<!-- PAGINATION -->
 <nav>
 <ul class="pagination justify-content-center">
 
@@ -154,6 +201,7 @@ Next »
 </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 function toggle(cls){
   const rows=document.getElementsByClassName(cls);
@@ -161,6 +209,26 @@ function toggle(cls){
     rows[i].style.display = rows[i].style.display==="none" ? "" : "none";
   }
 }
+
+new Chart(document.getElementById("pie"),{
+  type:'pie',
+  data:{
+    labels: {{ pie_labels|safe }},
+    datasets:[{
+      data: {{ pie_values|safe }}
+    }]
+  }
+});
+
+new Chart(document.getElementById("bar"),{
+  type:'bar',
+  data:{
+    labels: {{ bar_labels|safe }},
+    datasets:[{
+      data: {{ bar_values|safe }}
+    }]
+  }
+});
 </script>
 
 <style>

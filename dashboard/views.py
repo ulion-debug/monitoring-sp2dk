@@ -46,11 +46,11 @@ def logout_view(request):
 
 
 def dashboard(request):
-
     tahun_sp2dk = request.GET.get("tahun_sp2dk", "All")
     seksi = request.GET.get("seksi", "All")
     ar = request.GET.get("ar", "All")
-
+    kesimpulan_filter = request.GET.get("kesimpulan", "All")
+    
     qs = SP2DK.objects.all()
 
     if tahun_sp2dk != "All":
@@ -61,6 +61,56 @@ def dashboard(request):
 
     if ar != "All":
         qs = qs.filter(petugas_pengawasan=ar)
+
+    excel = os.path.join(settings.BASE_DIR, "dashboard/data/sp2dk_terbit_2025.xlsx")
+
+    df = pd.read_excel(excel, header=None, skiprows=5, usecols=range(23))
+
+    df.columns = [
+        "no","npwp","nama_wp","nip_ar","nama_ar",
+        "lhpt_nomor","lhpt_tanggal",
+        "nomor_sp2dk","tanggal_sp2dk","tahun_sp2dk",
+        "estimasi_potensi_sp2dk",
+        "nomor_lhp2dk","tanggal_lhp2dk",
+        "keputusan","kesimpulan",
+        "estimasi_potensi_lhp2dk","realisasi",
+        "dspp_nomor","dspp_tanggal",
+        "np2_nomor","np2_tanggal",
+        "sp2_nomor","sp2_tanggal",
+    ]
+
+    df["npwp"] = df["npwp"].astype(str).str.replace(".", "").str.strip()
+    df["tahun_sp2dk"] = pd.to_numeric(df["tahun_sp2dk"], errors="coerce")
+
+    db_df = pd.DataFrame(qs.values("npwp", "tahun_pajak"))
+    db_df["npwp"] = db_df["npwp"].astype(str).str.replace(".", "").str.strip()
+
+    merged = pd.merge(
+        df,
+        db_df,
+        left_on=["npwp", "tahun_sp2dk"],
+        right_on=["npwp", "tahun_pajak"],
+        how="inner"
+    )
+
+    merged["kesimpulan"] = (
+        merged["kesimpulan"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+    )
+
+    if kesimpulan_filter != "All":
+        merged = merged[merged["kesimpulan"] == kesimpulan_filter.lower()]
+
+    if tahun_sp2dk != "All":
+        merged = merged[merged["tahun_sp2dk"] == int(tahun_sp2dk)]
+
+    if seksi != "All":
+        merged = merged[merged["nip_ar"].astype(str).str.startswith(seksi)]
+
+    if ar != "All":
+        merged = merged[merged["nama_ar"] == ar]
 
     seksi_summary = (
         qs.values("unit_kerja")
@@ -74,12 +124,12 @@ def dashboard(request):
         .order_by("unit_kerja")
     )
 
-    seksi_summary = list(seksi_summary)
-
+    summary = []
     for s in seksi_summary:
         pot = s["potensi"] or 0
         real = s["realisasi"] or 0
         s["success_rate"] = round((real / pot) * 100, 2) if pot else 0
+        summary.append(s)
 
     ar_detail = (
         qs.values("unit_kerja", "petugas_pengawasan")
@@ -93,33 +143,45 @@ def dashboard(request):
         .order_by("unit_kerja", "petugas_pengawasan")
     )
 
+    total_dpp = qs.aggregate(s=Sum("jumlah_sp2dk"))["s"] or 0
+    total_lhp2dk = qs.aggregate(s=Sum("jumlah_lhp2dk_selesai"))["s"] or 0
+    total_outstanding = total_dpp - total_lhp2dk
+    total_potensi = qs.aggregate(s=Sum("total_estimasi_dpp"))["s"] or 0
+    total_realisasi = qs.aggregate(s=Sum("realisasi"))["s"] or 0
+
+    kes = merged["kesimpulan"].value_counts()
+    pie_labels = kes.index.tolist()
+    pie_values = kes.values.tolist()
+
+    merged["bulan"] = pd.to_datetime(
+        merged["tanggal_sp2dk"], errors="coerce"
+    ).dt.month_name()
+
+    bar_data = merged["bulan"].value_counts().reindex([
+        "January","February","March","April","May","June",
+        "July","August","September","October","November","December"
+    ]).dropna()
+
+    bar_labels = bar_data.index.tolist()
+    bar_values = bar_data.values.tolist()
+
     tahun_list = SP2DK.objects.values_list("tahun_pajak", flat=True).distinct()
     seksi_list = SP2DK.objects.values_list("unit_kerja", flat=True).distinct()
     ar_list = SP2DK.objects.values_list("petugas_pengawasan", flat=True).distinct()
 
-    selesai = qs.aggregate(s=Sum("jumlah_lhp2dk_selesai"))["s"] or 0
-    pemeriksaan = qs.aggregate(s=Sum("jumlah_usul_pemeriksaan"))["s"] or 0
-    pengawasan = qs.aggregate(s=Sum("jumlah_dalam_pengawasan"))["s"] or 0
-
-    pie_labels = ["Selesai", "Usul Pemeriksaan", "Dalam Pengawasan"]
-    pie_values = [selesai, pemeriksaan, pengawasan]
-
-    bar_data = (
-        qs.values("tahun_pajak")
-        .annotate(jumlah=Sum("jumlah_sp2dk"))
-        .order_by("tahun_pajak")
-    )
-
-    bar_labels = [x["tahun_pajak"] for x in bar_data]
-    bar_values = [x["jumlah"] for x in bar_data]
-
-    paginator = Paginator(seksi_summary, 7)
+    paginator = Paginator(summary, 7)
     page_number = request.GET.get("page")
     seksi_page = paginator.get_page(page_number)
 
     return render(request, "dashboard/index.html", {
         "seksi_summary": seksi_page,
         "ar_detail": ar_detail,
+
+        "total_dpp": total_dpp,
+        "total_lhp2dk": total_lhp2dk,
+        "total_outstanding": total_outstanding,
+        "total_potensi": total_potensi,
+        "total_realisasi": total_realisasi,
 
         "tahun_list": tahun_list,
         "seksi_list": seksi_list,
@@ -128,14 +190,13 @@ def dashboard(request):
         "selected_tahun_sp2dk": tahun_sp2dk,
         "selected_seksi": seksi,
         "selected_ar": ar,
+        "selected_kesimpulan": kesimpulan_filter,
 
         "pie_labels": pie_labels,
         "pie_values": pie_values,
 
         "bar_labels": bar_labels,
         "bar_values": bar_values,
-
-        "page_obj": seksi_page,
     })
 
 def sp2dk_closed(request):
