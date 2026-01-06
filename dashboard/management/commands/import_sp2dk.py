@@ -66,11 +66,11 @@ def to_decimal(value):
 
 
 class Command(BaseCommand):
-    help = "Import SP2DK dari dashboard/data/dpp_2025.csv"
+    help = "Import SP2DK dari dashboard/data/DPP 418_2026-01-05.csv"
 
     def handle(self, *args, **options):
 
-        file_path = os.path.join(settings.BASE_DIR, "dashboard", "data", "dpp_2025.csv")
+        file_path = os.path.join(settings.BASE_DIR, "dashboard", "data", "DPP 418_2026-01-05.csv")
 
         self.stdout.write(f"Membaca file: {file_path}")
 

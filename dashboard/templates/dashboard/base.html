@@ -40,7 +40,18 @@ body{
 }
 
 .active{
-    background:#facc15;
+    background:#f7c81e;   /* warna kuning */
+    color:#000;
+}
+
+/* supaya text link tidak biru saat aktif */
+.active a, .sidebar-item.active{
+    color:#000 !important;
+}
+
+/* opsional: tambahkan border agar lebih jelas */
+.sidebar-item.active{
+    border-left:4px solid #d97706;
 }
 
 .content{

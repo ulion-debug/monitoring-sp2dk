@@ -50,7 +50,7 @@ def dashboard(request):
     seksi = request.GET.get("seksi", "All")
     ar = request.GET.get("ar", "All")
     kesimpulan_filter = request.GET.get("kesimpulan", "All")
-    
+
     qs = SP2DK.objects.all()
 
     if tahun_sp2dk != "All":
@@ -62,7 +62,7 @@ def dashboard(request):
     if ar != "All":
         qs = qs.filter(petugas_pengawasan=ar)
 
-    excel = os.path.join(settings.BASE_DIR, "dashboard/data/sp2dk_terbit_2025.xlsx")
+    excel = os.path.join(settings.BASE_DIR, "dashboard/data/terbitsp2dk-060103137-2025.xlsx")
 
     df = pd.read_excel(excel, header=None, skiprows=5, usecols=range(23))
 
@@ -73,7 +73,7 @@ def dashboard(request):
         "estimasi_potensi_sp2dk",
         "nomor_lhp2dk","tanggal_lhp2dk",
         "keputusan","kesimpulan",
-        "estimasi_potensi_lhp2dk","realisasi",
+        "estimasi_potensi_lhp2dk","realisasi_excel",
         "dspp_nomor","dspp_tanggal",
         "np2_nomor","np2_tanggal",
         "sp2_nomor","sp2_tanggal",
@@ -82,7 +82,8 @@ def dashboard(request):
     df["npwp"] = df["npwp"].astype(str).str.replace(".", "").str.strip()
     df["tahun_sp2dk"] = pd.to_numeric(df["tahun_sp2dk"], errors="coerce")
 
-    db_df = pd.DataFrame(qs.values("npwp", "tahun_pajak"))
+    db_df = pd.DataFrame(qs.values("npwp", "tahun_pajak", "total_estimasi_dpp", "unit_kerja", "petugas_pengawasan"))
+
     db_df["npwp"] = db_df["npwp"].astype(str).str.replace(".", "").str.strip()
 
     merged = pd.merge(
@@ -93,61 +94,54 @@ def dashboard(request):
         how="inner"
     )
 
-    merged["kesimpulan"] = (
-        merged["kesimpulan"]
-        .astype(str)
-        .str.strip()
-        .str.lower()
-    )
+    merged["kesimpulan"] = merged["kesimpulan"].astype(str).str.strip()
 
     if kesimpulan_filter != "All":
-        merged = merged[merged["kesimpulan"] == kesimpulan_filter.lower()]
+        merged = merged[merged["kesimpulan"] == kesimpulan_filter]
 
-    if tahun_sp2dk != "All":
-        merged = merged[merged["tahun_sp2dk"] == int(tahun_sp2dk)]
+    merged["potensi_awal"] = merged["total_estimasi_dpp"].fillna(0).astype(float)
 
-    if seksi != "All":
-        merged = merged[merged["nip_ar"].astype(str).str.startswith(seksi)]
+    merged["potensi_akhir"] = pd.to_numeric(
+        merged["estimasi_potensi_lhp2dk"], errors="coerce"
+    ).fillna(0).astype(float)
 
-    if ar != "All":
-        merged = merged[merged["nama_ar"] == ar]
+    merged["realisasi"] = merged["potensi_awal"]
+
+    def hitung_sr(row):
+        if row["potensi_akhir"] <= 0:
+            return 0
+        return round((row["realisasi"] / row["potensi_akhir"]) * 100, 2)
+
+    merged["success_rate"] = merged.apply(hitung_sr, axis=1)
 
     seksi_summary = (
-        qs.values("unit_kerja")
-        .annotate(
-            sp2dk=Sum("jumlah_sp2dk"),
-            lhp2dk=Sum("jumlah_lhp2dk_selesai"),
-            outstanding=Sum("jumlah_sp2dk") - Sum("jumlah_lhp2dk_selesai"),
-            potensi=Sum("total_estimasi_dpp"),
-            realisasi=Sum("realisasi"),
+        merged.groupby("unit_kerja")
+        .agg(
+            dpp=("potensi_awal", "count"),
+            sp2dk=("nomor_sp2dk", "count"),
+            lhp2dk=("nomor_lhp2dk", "count"),
+            potensi_awal=("potensi_awal", "sum"),
+            potensi_akhir=("potensi_akhir", "sum"),
+            realisasi=("realisasi", "sum"),
         )
-        .order_by("unit_kerja")
-    )
+    ).reset_index()
 
-    summary = []
-    for s in seksi_summary:
-        pot = s["potensi"] or 0
-        real = s["realisasi"] or 0
-        s["success_rate"] = round((real / pot) * 100, 2) if pot else 0
-        summary.append(s)
+    seksi_summary["outstanding"] = seksi_summary["sp2dk"] - seksi_summary["lhp2dk"]
 
-    ar_detail = (
-        qs.values("unit_kerja", "petugas_pengawasan")
-        .annotate(
-            sp2dk=Sum("jumlah_sp2dk"),
-            lhp2dk=Sum("jumlah_lhp2dk_selesai"),
-            outstanding=Sum("jumlah_sp2dk") - Sum("jumlah_lhp2dk_selesai"),
-            potensi=Sum("total_estimasi_dpp"),
-            realisasi=Sum("realisasi"),
-        )
-        .order_by("unit_kerja", "petugas_pengawasan")
-    )
+    def sr2(row):
+        if row["potensi_akhir"] <= 0:
+            return 0
+        return round((row["realisasi"] / row["potensi_akhir"]) * 100, 2)
 
-    total_dpp = qs.aggregate(s=Sum("jumlah_sp2dk"))["s"] or 0
-    total_lhp2dk = qs.aggregate(s=Sum("jumlah_lhp2dk_selesai"))["s"] or 0
+    seksi_summary["success_rate"] = seksi_summary.apply(sr2, axis=1)
+
+    total_dpp = int(seksi_summary["sp2dk"].sum())
+    total_lhp2dk = int(seksi_summary["lhp2dk"].sum())
     total_outstanding = total_dpp - total_lhp2dk
-    total_potensi = qs.aggregate(s=Sum("total_estimasi_dpp"))["s"] or 0
-    total_realisasi = qs.aggregate(s=Sum("realisasi"))["s"] or 0
+
+    total_potensi_awal = merged["potensi_awal"].sum()
+    total_potensi_akhir = merged["potensi_akhir"].sum()
+    total_realisasi = merged["realisasi"].sum()
 
     kes = merged["kesimpulan"].value_counts()
     pie_labels = kes.index.tolist()
@@ -160,27 +154,26 @@ def dashboard(request):
     bar_data = merged["bulan"].value_counts().reindex([
         "January","February","March","April","May","June",
         "July","August","September","October","November","December"
-    ]).dropna()
+    ]).fillna(0)
 
-    bar_labels = bar_data.index.tolist()
-    bar_values = bar_data.values.tolist()
+    bar_labels = list(bar_data.index)
+    bar_values = list(bar_data.values)
 
     tahun_list = SP2DK.objects.values_list("tahun_pajak", flat=True).distinct()
     seksi_list = SP2DK.objects.values_list("unit_kerja", flat=True).distinct()
     ar_list = SP2DK.objects.values_list("petugas_pengawasan", flat=True).distinct()
 
-    paginator = Paginator(summary, 7)
-    page_number = request.GET.get("page")
-    seksi_page = paginator.get_page(page_number)
-
     return render(request, "dashboard/index.html", {
-        "seksi_summary": seksi_page,
-        "ar_detail": ar_detail,
+        "menu": "ringkasan",
+
+        "seksi_summary": seksi_summary.to_dict(orient="records"),
 
         "total_dpp": total_dpp,
         "total_lhp2dk": total_lhp2dk,
         "total_outstanding": total_outstanding,
-        "total_potensi": total_potensi,
+
+        "total_potensi_awal": total_potensi_awal,
+        "total_potensi_akhir": total_potensi_akhir,
         "total_realisasi": total_realisasi,
 
         "tahun_list": tahun_list,
@@ -199,9 +192,10 @@ def dashboard(request):
         "bar_values": bar_values,
     })
 
+
 def sp2dk_closed(request):
 
-    file_path = os.path.join(settings.BASE_DIR, "dashboard/data/sp2dk_terbit_2025.xlsx")
+    file_path = os.path.join(settings.BASE_DIR, "dashboard/data/terbitsp2dk-060103137-2025.xlsx")
 
     df = pd.read_excel(
         file_path,
@@ -291,6 +285,7 @@ def sp2dk_closed(request):
     page_obj = paginator.get_page(page_number)
 
     return render(request, "dashboard/sp2dk_closed.html", {
+        "menu": "closed",
         "data": page_obj,
 
         "tahun_list": tahun_list,
@@ -308,13 +303,10 @@ def sp2dk_closed(request):
     
 def sp2dk_outstanding(request):
 
-    file_prev = os.path.join(settings.BASE_DIR, "dashboard/data/sp2dk_terbit_2024.xlsx")
-    file_now  = os.path.join(settings.BASE_DIR, "dashboard/data/sp2dk_terbit_2025.xlsx")
-
-    df_prev = pd.read_excel(file_prev, header=None, skiprows=5, usecols=range(23))
-    df_now  = pd.read_excel(file_now,  header=None, skiprows=5, usecols=range(23))
-
-    cols = [
+    file_path = os.path.join(settings.BASE_DIR, "dashboard/data/terbitsp2dk-060103137-2024.xlsx")
+    df = pd.read_excel(file_path, header=None, skiprows=5, usecols=range(23))
+    
+    df.columns = [
         "no","npwp","nama_wp","nip_ar","nama_ar",
         "lhpt_nomor","lhpt_tanggal",
         "nomor_sp2dk","tanggal_sp2dk","tahun_sp2dk",
@@ -327,24 +319,18 @@ def sp2dk_outstanding(request):
         "sp2_nomor","sp2_tanggal",
     ]
 
-    df_prev.columns = cols
-    df_now.columns  = cols
-    df = df_prev.copy()
-
-    df_now_filtered = df_now[df_now["nomor_sp2dk"].isna()]
-
-    df = pd.concat([df, df_now_filtered], ignore_index=True)
-
     df["tahun_sp2dk"] = pd.to_numeric(df["tahun_sp2dk"], errors="coerce").astype("Int64")
+
     df["nama_ar"] = df["nama_ar"].astype(str).str.strip()
 
-    money_cols = ["estimasi_potensi_sp2dk","realisasi"]
-    for c in money_cols:
-        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+    df["estimasi_potensi_sp2dk"] = pd.to_numeric(df["estimasi_potensi_sp2dk"], errors="coerce").fillna(0)
+    df["realisasi"] = pd.to_numeric(df["realisasi"], errors="coerce").fillna(0)
 
-    tahun = request.GET.get("tahun","All")
-    ar    = request.GET.get("ar","All")
-    seksi = request.GET.get("seksi","All")
+    df = df[df["nomor_sp2dk"].isna()]
+
+    tahun = request.GET.get("tahun", "All")
+    ar    = request.GET.get("ar", "All")
+    seksi = request.GET.get("seksi", "All")
 
     if tahun != "All":
         df = df[df["tahun_sp2dk"] == int(tahun)]
@@ -353,32 +339,31 @@ def sp2dk_outstanding(request):
         df = df[df["nama_ar"] == ar]
 
     if seksi != "All":
-        df = df[df["nip_ar"].str.startswith(seksi)]
+        df = df[df["nip_ar"].astype(str).str.startswith(seksi)]
 
     tahun_list = sorted(df["tahun_sp2dk"].dropna().unique().tolist())
     ar_list    = sorted(df["nama_ar"].dropna().unique().tolist())
-    
+
     cols_text = [
-        "nomor_sp2dk",
-        "tanggal_sp2dk",
-        "nomor_lhp2dk",
-        "tanggal_lhp2dk",
-        "lhpt_nomor",
-        "lhpt_tanggal",
+        "nomor_sp2dk","tanggal_sp2dk",
+        "nomor_lhp2dk","tanggal_lhp2dk",
+        "lhpt_nomor","lhpt_tanggal",
     ]
     for c in cols_text:
         df[c] = df[c].fillna("-")
 
-    data_list = df.to_dict(orient="records")
-    paginator = Paginator(data_list, 15)
+    paginator = Paginator(df.to_dict(orient="records"), 15)
     page = request.GET.get("page", 1)
     data_page = paginator.get_page(page)
 
     total_potensi = df["estimasi_potensi_sp2dk"].sum()
     total_realisasi = df["realisasi"].sum()
 
-    return render(request,"dashboard/sp2dk_outstanding.html",{
+    return render(request, "dashboard/sp2dk_outstanding.html",{
+        "menu": "outstanding",
+
         "data": data_page,
+
         "tahun_list": tahun_list,
         "ar_list": ar_list,
 
