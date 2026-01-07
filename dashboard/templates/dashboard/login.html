@@ -2,139 +2,126 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Login • Monitoring SP2DK</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<title>Login • LENTERA SP2DK</title>
 
-    <style>
-        body{
-            background:#f6f6f6;
-            min-height:100vh;
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            font-family:'Poppins',sans-serif;
-        }
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-        .wrapper{
-            background:white;
-            width:1050px;
-            min-height:540px;
-            border-radius:20px;
-            overflow:hidden;
-            box-shadow:0 30px 80px rgba(0,0,0,.1);
-            display:flex;
-        }
+<style>
 
-        .left-panel{
-            width:40%;
-            padding:40px 25px 0 25px;
-            border-right:1px solid #f1f1f1;
-            display:flex;
-            flex-direction:column;
-            justify-content:space-between;
-        }
+body{
+    background:linear-gradient(145deg,#f8fafc,#eef2ff);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-family:'Poppins',sans-serif;
+}
 
-        .logo-top{
-            text-align:center;
-        }
+.wrapper{
+    background:white;
+    width:1050px;
+    min-height:560px;
+    border-radius:26px;
+    overflow:hidden;
+    display:flex;
+}
 
-        .logo-img{
-            height:40px;
-            margin-bottom:10px;
-        }
+.left-panel{
+    width:43%;
+    padding:40px 25px 0 25px;
+    background:white;
+    border-right:1px solid #f1f1f1;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    position:relative;
+}
 
-        .title{
-            text-align:center;
-            font-weight:600;
-            letter-spacing:4px;
-            font-size:20px;
-            line-height:30px;
-            margin-top:5px;
-        }
+.logo-top{
+    text-align:center;
+    margin-top:10px;
+}
 
-        .circles{
-            width:100%;
-            height:220px;
-            position:relative;
-            overflow:hidden;
-        }
+.logo-top img{
+    width:78%;
+}
 
-        .circle{
-            position:absolute;
-            border-radius:50%;
-            opacity:.95;
-        }
+.app-title{
+    text-align:center;
+    font-weight:700;
+    letter-spacing:.6px;
+    margin-top:6px;
+    font-size:15px;
+    color:#0a2d82;
+}
 
-        .c1{
-            width:210px;
-            height:210px;
-            background:#123e7a;
-            bottom:-50px;
-            left:-20px;
-        }
+.accent{
+    position:absolute;
+    width:7px;
+    height:7px;
+    border-radius:50%;
+}
 
-        .c2{
-            width:180px;
-            height:180px;
-            background:#0c46c3;
-            bottom:-60px;
-            left:90px;
-            opacity:.95;
-        }
+.a1{ top:90px; left:40px; background:#0a2d82;}
+.a2{ top:130px; left:65px; background:#f5b800;}
+.a3{ top:165px; left:28px; background:#0ea5e9;}
 
-        .c3{
-            width:200px;
-            height:200px;
-            background:#11a3e6;
-            bottom:-65px;
-            left:190px;
-        }
+.wave{
+    width:100%;
+    height:130px;
+    position:absolute;
+    bottom:0;
+    left:0;
+    background:linear-gradient(135deg,#022a6b,#0ea5e9);
+    border-top-left-radius:90% 40%;
+}
 
-        .c4{
-            width:185px;
-            height:185px;
-            background:#ffdd4a;
-            bottom:-20px;
-            left:130px;
-            opacity:.88;
-        }
+.right-panel{
+    width:57%;
+    padding:60px 70px;
+}
 
-        .right-panel{
-            width:60%;
-            padding:60px 70px;
-        }
+.login-title{
+    font-size:30px;
+    font-weight:800;
+    margin-bottom:8px;
+}
 
-        .login-title{
-            font-size:28px;
-            font-weight:700;
-            margin-bottom:5px;
-        }
+.subtitle{
+    color:#6b7280;
+    font-size:13px;
+    margin-bottom:25px;
+}
 
-        .subtitle{
-            color:#666;
-            margin-bottom:25px;
-        }
+.input-box{
+    height:46px;
+    border-radius:14px;
+    font-size:13px;
+}
 
-        .input-box{
-            height:45px;
-            border-radius:12px;
-        }
+.btn-login{
+    width:100%;
+    height:46px;
+    background:#022a6b;
+    color:white;
+    font-weight:600;
+    border-radius:14px;
+}
 
-        .btn-login{
-            width:100%;
-            height:45px;
-            background:#0a2d74;
-            color:white;
-            font-weight:600;
-            border-radius:12px;
-        }
+.btn-login:hover{
+    background:#021f53;
+    color:white;
+}
 
-        .btn-login:hover{
-            background:#08235c;
-            color:white;
-        }
-    </style>
+.small-note{
+    font-size:11px;
+    color:#6b7280;
+    text-align:center;
+    margin-top:10px;
+}
+
+</style>
 </head>
 
 <body>
@@ -143,29 +130,28 @@
     <div class="left-panel">
         <div>
             <div class="logo-top">
-                <img src="{% static 'images/logo-djp.png' %}" class="logo-img" alt="Logo">
+                <img src="{% static 'dashboard/img/logoLogin.png' %}" alt="LENTERA">
             </div>
-            <div class="title">
-                Monitoring<br>SP2DK
-            </div>
-        </div>
 
-        <div class="circles">
-            <div class="circle c1"></div>
-            <div class="circle c2"></div>
-            <div class="circle c3"></div>
-            <div class="circle c4"></div>
+            <div class="app-title">
+                LAYANAN EVALUASI & TRACKING REALISASI SP2DK
+            </div>
         </div>
+        <div class="accent a1"></div>
+        <div class="accent a2"></div>
+        <div class="accent a3"></div>
+
+        <div class="wave"></div>
 
     </div>
 
     <div class="right-panel">
-        <div class="login-title">Login</div>
-        <div class="subtitle"></div>
+        <div class="login-title">Masuk</div>
+        <div class="subtitle">Silakan login untuk mengakses dashboard LENTERA</div>
 
         {% if error %}
         <div class="alert alert-danger">
-            Username atau Password salah
+            Email atau password salah
         </div>
         {% endif %}
 
@@ -184,6 +170,9 @@
 
             <button class="btn btn-login">Log In</button>
         </form>
+        <div class="small-note">
+            © LENTERA SP2DK — DJP
+        </div>
     </div>
 </div>
 </body>

@@ -2,52 +2,14 @@
 {% load humanize %}
 {% block content %}
 
-<!DOCTYPE html>
-<html>
-<head>
-<title>MONITORING SP2DK</title>
-
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-
-<style>
-.pagination .page-item .page-link{
-    border-radius: 8px;
-    margin: 2px;
-    color:#0a2d82;
-    font-weight:600;
-    border:1px solid #dcdcdc;
-    min-width: 36px;
-    text-align:center;
-}
-
-.pagination .page-item .page-link:hover{
-    background:#f7c81e;
-    border-color:#f7c81e;
-    color:black;
-}
-
-.pagination .page-item.active .page-link{
-    background:#0a2d82;
-    color:white;
-    border-color:#0a2d82;
-}
-
-.pagination .page-item.disabled .page-link{
-    color:#aaa;
-    background:#f3f3f3;
-}
-
-</style>
-</head>
-
-<body>
+<h4 class="mb-3 fw-bold">SP2DK – OUTSTANDING (BELUM LHP)</h4>
 
 <form method="get" class="card-box mb-3">
 
 <div class="row">
 
 <div class="col-md-3">
-<label><b>Tahun SP2DK</b></label>
+<label>Tahun SP2DK</label>
 <select name="tahun" class="form-control" onchange="this.form.submit()">
 <option value="All">All</option>
 {% for t in tahun_list %}
@@ -57,7 +19,7 @@
 </div>
 
 <div class="col-md-3">
-<label><b>AR</b></label>
+<label>AR</label>
 <select name="ar" class="form-control" onchange="this.form.submit()">
 <option value="All">All</option>
 {% for a in ar_list %}
@@ -65,12 +27,31 @@
 {% endfor %}
 </select>
 </div>
+<div class="col-md-3">
+<label>Minimal Hari</label>
+<input type="number"
+       name="min_hari"
+       class="form-control"
+       value="{{ min_hari }}"
+       placeholder="contoh: 30"
+       onchange="this.form.submit()">
+</div>
+
+<div class="col-md-3">
+<label>Maksimal Hari</label>
+<input type="number"
+       name="max_hari"
+       class="form-control"
+       value="{{ max_hari }}"
+       placeholder="contoh: 90"
+       onchange="this.form.submit()">
+</div>
 
 </div>
 </form>
 
 <div class="card-box">
-
+<div class="table-wrapper">
 <table class="table table-bordered table-sm">
 <thead class="table-header">
 <tr>
@@ -83,6 +64,7 @@
 <th>Tahun SP2DK</th>
 <th>Estimasi Potensi</th>
 <th>Realisasi</th>
+<th>Hari</th>
 </tr>
 </thead>
 
@@ -102,87 +84,130 @@
 
 <td>Rp {{ d.estimasi_potensi_sp2dk|default:0|floatformat:0|intcomma }}</td>
 <td>Rp {{ d.realisasi|default:0|floatformat:0|intcomma }}</td>
+<td>{{ d.hari|floatformat:0 }}</td>
 </tr>
 
 {% empty %}
-<tr><td colspan="10" class="text-center">Tidak ada data</td></tr>
+<tr>
+<td colspan="9" class="text-center text-muted">Tidak ada data outstanding</td>
+</tr>
 {% endfor %}
 
 </tbody>
 </table>
 </div>
-<br>
-<h5><b>Total Potensi:</b> Rp {{ total_potensi|floatformat:0|intcomma }}</h5>
-<h5><b>Total Realisasi:</b> Rp {{ total_realisasi|floatformat:0|intcomma }}</h5>
-<br>
+</div>
 
-<nav>
+<div class="row mt-3">
+<div class="col-md-6">
+<div class="card p-3 shadow-sm">
+<b>Total Potensi</b>
+<h5>Rp {{ total_potensi|floatformat:0|intcomma }}</h5>
+</div>
+</div>
+
+<div class="col-md-6">
+<div class="card p-3 shadow-sm">
+<b>Total Realisasi</b>
+<h5>Rp {{ total_realisasi|floatformat:0|intcomma }}</h5>
+</div>
+</div>
+</div>
+
+<nav class="mt-3">
 <ul class="pagination justify-content-center">
 
-    {% if data.has_previous %}
-    <li class="page-item">
-        <a class="page-link"
-           href="?page={{ data.previous_page_number }}&tahun={{ selected_tahun }}&ar={{ selected_ar }}&kesimpulan={{ selected_kesimpulan }}">
-            « Prev
-        </a>
-    </li>
-    {% else %}
-    <li class="page-item disabled"><span class="page-link">« Prev</span></li>
-    {% endif %}
+{% if data.has_previous %}
+<li class="page-item">
+<a class="page-link" href="?page={{ data.previous_page_number }}&tahun={{ selected_tahun }}&ar={{ selected_ar }}">
+« Prev
+</a>
+</li>
+{% else %}
+<li class="page-item disabled"><span class="page-link">« Prev</span></li>
+{% endif %}
 
-    {% if data.number > 3 %}
-        <li class="page-item">
-            <a class="page-link"
-               href="?page=1&tahun={{ selected_tahun }}&ar={{ selected_ar }}&kesimpulan={{ selected_kesimpulan }}">
-                1
-            </a>
-        </li>
-        {% if data.number > 4 %}
-            <li class="page-item disabled"><span class="page-link">…</span></li>
-        {% endif %}
-    {% endif %}
+{% for num in data.paginator.page_range %}
+{% if num == data.number %}
+<li class="page-item active"><span class="page-link">{{ num }}</span></li>
+{% elif num >= data.number|add:"-2" and num <= data.number|add:"2" %}
+<li class="page-item">
+<a class="page-link" href="?page={{ num }}&tahun={{ selected_tahun }}&ar={{ selected_ar }}">{{ num }}</a>
+</li>
+{% endif %}
+{% endfor %}
 
-    {# Pages around current #}
-    {% for num in data.paginator.page_range %}
-        {% if num >= data.number|add:'-2' and num <= data.number|add:'2' %}
-            {% if num == data.number %}
-                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% else %}
-                <li class="page-item">
-                    <a class="page-link"
-                       href="?page={{ num }}&tahun={{ selected_tahun }}&ar={{ selected_ar }}&kesimpulan={{ selected_kesimpulan }}">
-                        {{ num }}
-                    </a>
-                </li>
-            {% endif %}
-        {% endif %}
-    {% endfor %}
-
-    {% if data.number < data.paginator.num_pages|add:'-2' %}
-        {% if data.number < data.paginator.num_pages|add:'-3' %}
-            <li class="page-item disabled"><span class="page-link">…</span></li>
-        {% endif %}
-        <li class="page-item">
-            <a class="page-link"
-               href="?page={{ data.paginator.num_pages }}&tahun={{ selected_tahun }}&ar={{ selected_ar }}&kesimpulan={{ selected_kesimpulan }}">
-                {{ data.paginator.num_pages }}
-            </a>
-        </li>
-    {% endif %}
-
-    {% if data.has_next %}
-    <li class="page-item">
-        <a class="page-link"
-           href="?page={{ data.next_page_number }}&tahun={{ selected_tahun }}&ar={{ selected_ar }}&kesimpulan={{ selected_kesimpulan }}">
-            Next »
-        </a>
-    </li>
-    {% else %}
-    <li class="page-item disabled"><span class="page-link">Next »</span></li>
-    {% endif %}
+{% if data.has_next %}
+<li class="page-item">
+<a class="page-link" href="?page={{ data.next_page_number }}&tahun={{ selected_tahun }}&ar={{ selected_ar }}">
+Next »
+</a>
+</li>
+{% else %}
+<li class="page-item disabled"><span class="page-link">Next »</span></li>
+{% endif %}
 
 </ul>
 </nav>
-</body>
-</html>
+
+<style>
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+body{
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+}
+
+.table{
+    font-size:12px;
+}
+
+.table-wrapper{
+    overflow-x: auto;
+    white-space: nowrap;
+    width: 100%;
+}
+
+.table td,.table th{
+    padding:6px 8px!important;
+    vertical-align:middle;
+}
+
+.table-header{
+    background:#eef3ff;
+    text-transform:uppercase;
+    font-size:11px;
+    letter-spacing:.3px;
+}
+
+.card-box{
+    background:white;
+    border-radius:16px;
+    padding:14px 18px;
+    box-shadow:0 8px 22px rgba(0,0,0,.05);
+}
+
+.pagination .page-item .page-link{
+    border-radius:8px;
+    margin:2px;
+    color:#0a2d82;
+    font-weight:600;
+    border:1px solid #dcdcdc;
+    min-width:34px;
+    text-align:center;
+}
+
+.pagination .active .page-link{
+    background:#0a2d82;
+    color:white;
+    border-color:#0a2d82;
+}
+
+.card h5{
+    font-size:14px;
+}
+
+</style>
+
 {% endblock %}

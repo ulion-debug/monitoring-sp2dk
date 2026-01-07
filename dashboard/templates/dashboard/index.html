@@ -41,15 +41,14 @@
 <div class="col-md-2">
 <label>Kesimpulan</label>
 <select name="kesimpulan" class="form-control" onchange="this.form.submit()">
-    <option value="All">All</option>
-    {% for k in pie_labels %}
-        <option value="{{ k }}" {% if selected_kesimpulan == k %}selected{% endif %}>{{ k }}</option>
-    {% endfor %}
+<option value="All">All</option>
+{% for k in pie_labels %}
+<option value="{{ k }}" {% if selected_kesimpulan == k %}selected{% endif %}>{{ k }}</option>
+{% endfor %}
 </select>
 </div>
 
 </div>
-
 </form>
 
 <div class="card-box">
@@ -72,12 +71,16 @@
 <tbody>
 
 {% for s in seksi_summary %}
-<tr style="background:#e8eefc; font-weight:bold">
-<td onclick="toggle('{{ s.unit_kerja }}')" style="cursor:pointer">+ {{ s.unit_kerja }}</td>
+<tr style="background:#eef3ff; font-weight:bold">
+<td onclick="toggle('{{ s.unit_key }}')" style="cursor:pointer">
++ {{ s.unit_kerja }}
+</td>
+
 <td>{{ s.sp2dk|default:0 }}</td>
 <td>{{ s.sp2dk|default:0 }}</td>
 <td>{{ s.lhp2dk|default:0 }}</td>
 <td>{{ s.outstanding|default:0 }}</td>
+
 <td>Rp {{ s.potensi_awal|floatformat:0|intcomma }}</td>
 <td>Rp {{ s.potensi_akhir|floatformat:0|intcomma }}</td>
 <td>Rp {{ s.realisasi|floatformat:0|intcomma }}</td>
@@ -88,9 +91,10 @@
 </tr>
 
 {% for d in ar_detail %}
-{% if d.unit_kerja == s.unit_kerja %}
-<tr class="{{ s.unit_kerja }}" style="display:none">
+{% if d.unit_key == s.unit_key %}
+<tr class="{{ s.unit_key }}" style="display:none">
 <td>&nbsp;&nbsp;&nbsp;→ {{ d.petugas_pengawasan }}</td>
+<td>{{ d.sp2dk }}</td>
 <td>{{ d.sp2dk }}</td>
 <td>{{ d.lhp2dk }}</td>
 <td>{{ d.outstanding }}</td>
@@ -107,6 +111,7 @@
 </table>
 
 </div>
+<br />
 <div class="row text-center">
 
 <div class="col-md-2">
@@ -150,13 +155,13 @@
 <h5>Rp {{ total_realisasi|floatformat:0|intcomma }}</h5>
 </div>
 </div>
+
 </div>
 
-<br>
-
-<br>
+<br><br>
 
 <div class="row">
+
 <div class="col-md-6">
 <div class="card-box">
 <h6 class="text-center">KESIMPULAN LHP2DK</h6>
@@ -170,10 +175,16 @@
 <canvas id="bar"></canvas>
 </div>
 </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
+
+Chart.defaults.font.size = 11;
+Chart.defaults.font.family = 'Inter';
+
 function toggle(cls){
   const rows=document.getElementsByClassName(cls);
   for(let i=0;i<rows.length;i++){
@@ -196,27 +207,85 @@ new Chart(document.getElementById("bar"),{
   data:{
     labels: {{ bar_labels|safe }},
     datasets:[{
-      data: {{ bar_values|safe }}
+      label: "Jumlah SP2DK",
+      data: {{ bar_values|safe }},
+      backgroundColor: 'rgba(13, 71, 161, 0.8)'
     }]
+  },
+  options:{
+    responsive:true,
+    maintainAspectRatio:false
   }
 });
 </script>
 
 <style>
-.low{color:red;font-weight:bold;}
-.mid{color:orange;font-weight:bold;}
-.high{color:green;font-weight:bold;}
 
-.pagination .page-link{
-  border-radius:8px;
-  margin:2px;
-  color:#0a2d82;
-  font-weight:600;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+body{
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    color:#1f2937;
 }
 
-.pagination .active .page-link{
-  background:#0a2d82;
-  color:white;
+.table{
+    font-size:12px;
+}
+
+.table td,.table th{
+    padding:6px 8px!important;
+    vertical-align:middle;
+}
+
+.table-header{
+    background:#ecf2ff;
+    font-size:11px;
+    letter-spacing:.4px;
+    text-transform:uppercase;
+}
+
+.card-box{
+    background:white;
+    border-radius:16px;
+    padding:14px 18px;
+    box-shadow:0 8px 22px rgba(0,0,0,.05);
+}
+
+.card{
+    border-radius:18px;
+    font-size:12px;
+}
+
+.card h5{
+    font-size:14px;
+}
+
+.low{color:#dc2626;font-weight:700;}
+.mid{color:#ea580c;font-weight:700;}
+.high{color:#16a34a;font-weight:700;}
+
+td[onclick]{
+    color:#0a2d82;
+    font-weight:600;
+}
+
+form select{
+    font-size:12px;
+    border-radius:10px;
+}
+
+h6{
+    font-weight:600;
+    font-size:13px;
+    letter-spacing:.3px;
+}
+#bar{
+    min-height:280px;
+}
+#bar{
+    max-height:300px;
+    height:300px;
 }
 </style>
 
