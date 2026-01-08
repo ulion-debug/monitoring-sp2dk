@@ -119,7 +119,9 @@ def dashboard(request):
         merged["estimasi_potensi_lhp2dk"], errors="coerce"
     ).fillna(0).astype(float)
 
-    merged["realisasi"] = merged["potensi_awal"]
+    merged["realisasi"] = pd.to_numeric(
+        merged["realisasi"], errors="coerce"
+    ).fillna(0).astype(float)
 
     seksi_summary = (
         merged.groupby("unit_kerja")
@@ -278,11 +280,7 @@ def sp2dk_closed(request):
     ]
 
     for col in date_cols:
-        df[col] = (
-            pd.to_datetime(df[col], errors="coerce")
-            .dt.strftime("%d-%m-%Y")
-            .fillna("")
-        )
+        df[col] = pd.to_datetime(df[col], errors="coerce", dayfirst=True)
 
     df["hari"] = (
         pd.to_datetime(df["tanggal_lhp2dk"], format="%d-%m-%Y", errors="coerce")
@@ -372,7 +370,7 @@ def sp2dk_closed(request):
 @require_login 
 def sp2dk_outstanding(request):
 
-    file_path = os.path.join(settings.BASE_DIR, "dashboard/data/terbitsp2dk-060103137-2025.xlsx")
+    file_path = os.path.join(settings.BASE_DIR, "dashboard/data/terbitsp2dk-060103137-2024.xlsx")
     df = pd.read_excel(file_path, header=None, skiprows=5, usecols=range(23))
     
     df.columns = [

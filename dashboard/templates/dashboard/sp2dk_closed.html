@@ -9,7 +9,7 @@
 <div class="row">
 
 <div class="col-md-3">
-<label>Tahun SP2DK</label>
+<label>Tahun Pajak</label>
 <select name="tahun" class="form-control" onchange="this.form.submit()">
 <option value="All">All</option>
 {% for t in tahun_list %}
@@ -81,7 +81,7 @@
 <th>Nama WP</th>
 <th>Nomor SP2DK</th>
 <th>Tanggal SP2DK</th>
-<th>Tahun SP2DK</th>
+<th>Tahun Pajak</th>
 <th>Estimasi Potensi SP2DK</th>
 <th>Nomor LHP2DK</th>
 <th>Tanggal LHP2DK</th>
@@ -107,7 +107,7 @@
 <td>{{ d.tahun_sp2dk }}</td>
 <td>Rp {{ d.estimasi_potensi_sp2dk|default:0|floatformat:0|intcomma }}</td>
 <td>{{ d.nomor_lhp2dk|default:"-" }}</td>
-<td>{{ d.tanggal_lhp2dk|default:"-" }}</td>
+<td>{{ d.tanggal_lhp2dk|date:"d-m-Y" }}</td>
 <td>
 <span class="badge bg-info text-dark">{{ d.kesimpulan }}</span>
 </td>
