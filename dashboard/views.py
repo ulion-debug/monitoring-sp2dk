@@ -103,9 +103,6 @@ def dashboard(request):
     ar = request.GET.get("ar", "All")
     kesimpulan_filter = request.GET.get("kesimpulan", "All")
 
-    # =========================
-    # DPP DATA
-    # =========================
     dpp_qs = DPP.objects.all()
 
     if tahun != "All":
@@ -131,9 +128,6 @@ def dashboard(request):
         dpp_df["nilai_potensi_awal_sp2dk"], errors="coerce"
     ).fillna(0)
 
-    # =========================
-    # SP2DK CURRENT
-    # =========================
     sp2dk_df = pd.DataFrame(
         SP2DKCurrent.objects.values(
             "npwp",
@@ -156,9 +150,6 @@ def dashboard(request):
         sp2dk_df["realisasi"], errors="coerce"
     ).fillna(0)
 
-    # =========================
-    # MERGE (LEFT = semua SP2DK tampil)
-    # =========================
     merged = pd.merge(
         sp2dk_df,
         dpp_df,
@@ -166,9 +157,6 @@ def dashboard(request):
         how="left"
     )
 
-    # =========================
-    # FLAG STATUS
-    # =========================
     merged["is_lhpt"] = merged["lhpt_nomor"].notna()
     merged["is_lhp2dk"] = merged["nomor_lhp2dk"].notna()
 
@@ -178,16 +166,10 @@ def dashboard(request):
     if kesimpulan_filter != "All":
         merged = merged[merged["kesimpulan"] == kesimpulan_filter]
 
-    # =========================
-    # PENTING: HILANGKAN DUPLIKASI SP2DK
-    # =========================
     unique_sp2dk = merged.drop_duplicates(
         subset=["npwp", "nomor_sp2dk"]
     )
 
-    # =========================
-    # SEKSI SUMMARY
-    # =========================
     seksi_summary = (
         unique_sp2dk.groupby("unit_kerja")
         .agg(
@@ -212,10 +194,7 @@ def dashboard(request):
         .str.replace("/", "_")
         .str.replace("-", "_")
     )
-
-    # =========================
-    # AR DETAIL
-    # =========================
+    
     ar_detail = (
         unique_sp2dk.groupby(["unit_kerja", "petugas_pengawasan"])
         .agg(
@@ -242,10 +221,6 @@ def dashboard(request):
         .str.replace("-", "_")
     )
 
-
-    # =========================
-    # TOTAL
-    # =========================
     total_dpp = int(seksi_summary["sp2dk"].sum())
     total_lhp2dk = int(seksi_summary["lhp2dk"].sum())
     total_outstanding = total_dpp - total_lhp2dk
@@ -330,15 +305,11 @@ def sp2dk_closed(request):
         if not obj.tanggal_sp2dk:
             continue
 
-        # ===============================
-        # HITUNG HARI & STATUS (AMAN)
-        # ===============================
         if obj.tanggal_lhp2dk:
             hari = (obj.tanggal_lhp2dk - obj.tanggal_sp2dk).days
 
-            # 🔒 PENGAMAN DATA KOTOR
             if hari < 0:
-                continue  # SKIP data anomali
+                continue
 
             status = "Closed"
             waktu_closed = hari
@@ -347,15 +318,9 @@ def sp2dk_closed(request):
             status = "Open"
             waktu_closed = None
 
-        # ===============================
-        # FILTER STATUS
-        # ===============================
         if status_filter != "All" and status != status_filter:
             continue
 
-        # ===============================
-        # FILTER RANGE HARI
-        # ===============================
         if min_hari and hari < int(min_hari):
             continue
         if max_hari and hari > int(max_hari):
@@ -433,13 +398,10 @@ def sp2dk_outstanding(request):
 
     for obj in qs:
 
-        # =========================
-        # HITUNG HARI (AMAN)
-        # =========================
         if obj.tanggal_sp2dk:
             hari = (today - obj.tanggal_sp2dk).days
             if hari < 0:
-                hari = None  # data anomali, tetap tampil
+                hari = None
         else:
             hari = None
 
@@ -621,7 +583,7 @@ def _import_sp2dk(df, model):
             tahun_pajak=int(r[9]) if not pd.isna(r[9]) else None,
             estimasi_potensi_sp2dk=clean_decimal(r[10]),
 
-            nomor_lhp2dk=clean_str(r[11]),        # 🔥 PENTING
+            nomor_lhp2dk=clean_str(r[11]),
             tanggal_lhp2dk=clean_date(r[12]),
             keputusan=clean_str(r[13]),
             kesimpulan=clean_str(r[14]),

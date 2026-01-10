@@ -1,7 +1,5 @@
 from django.db import models
 from django.utils import timezone
-
-
 class DPP(models.Model):
     no = models.IntegerField(null=True, blank=True)
     npwp = models.CharField(max_length=50, null=True, blank=True)
@@ -52,17 +50,14 @@ class BaseSP2DK(models.Model):
     nip_ar = models.CharField(max_length=50)
     nama_ar = models.CharField(max_length=255)
 
-    # LHPT
     lhpt_nomor = models.CharField(max_length=100, null=True, blank=True)
     lhpt_tanggal = models.DateField(null=True, blank=True)
 
-    # SP2DK  ✅ BOLEH NULL
     nomor_sp2dk = models.CharField(max_length=100, null=True, blank=True)
     tanggal_sp2dk = models.DateField(null=True, blank=True)
     tahun_pajak = models.IntegerField(null=True, blank=True)
     estimasi_potensi_sp2dk = models.DecimalField(max_digits=20, decimal_places=2, default=0)
 
-    # LHP2DK
     nomor_lhp2dk = models.CharField(max_length=100, null=True, blank=True)
     tanggal_lhp2dk = models.DateField(null=True, blank=True)
     keputusan = models.CharField(max_length=100, null=True, blank=True)
@@ -70,7 +65,6 @@ class BaseSP2DK(models.Model):
     estimasi_potensi_lhp2dk = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     realisasi = models.DecimalField(max_digits=20, decimal_places=2, default=0)
 
-    # USUL PEMERIKSAAN
     dspp_nomor = models.CharField(max_length=100, null=True, blank=True)
     dspp_tanggal = models.DateField(null=True, blank=True)
 
