@@ -1,5 +1,7 @@
 from django.db import models
 from django.utils import timezone
+
+
 class DPP(models.Model):
     no = models.IntegerField(null=True, blank=True)
     npwp = models.CharField(max_length=50, null=True, blank=True)
@@ -36,11 +38,12 @@ class DPP(models.Model):
 
     realisasi = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     created_time = models.DateTimeField(default=timezone.now)
-    
+
     def success_rate(self):
         if self.total_estimasi_dpp == 0:
             return 0
         return (self.realisasi / self.total_estimasi_dpp) * 100
+
 
 class BaseSP2DK(models.Model):
     npwp = models.CharField(max_length=50)
@@ -53,10 +56,10 @@ class BaseSP2DK(models.Model):
     lhpt_nomor = models.CharField(max_length=100, null=True, blank=True)
     lhpt_tanggal = models.DateField(null=True, blank=True)
 
-    # SP2DK
-    nomor_sp2dk = models.CharField(max_length=100)
-    tanggal_sp2dk = models.DateField()
-    tahun_pajak = models.IntegerField()
+    # SP2DK  ✅ BOLEH NULL
+    nomor_sp2dk = models.CharField(max_length=100, null=True, blank=True)
+    tanggal_sp2dk = models.DateField(null=True, blank=True)
+    tahun_pajak = models.IntegerField(null=True, blank=True)
     estimasi_potensi_sp2dk = models.DecimalField(max_digits=20, decimal_places=2, default=0)
 
     # LHP2DK

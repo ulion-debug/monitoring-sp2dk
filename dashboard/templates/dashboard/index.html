@@ -9,7 +9,7 @@
 <div class="row">
 
 <div class="col-md-2">
-<label>Tahun SP2DK</label>
+<label>Tahun Pajak</label>
 <select name="tahun_sp2dk" class="form-control" onchange="this.form.submit()">
 <option value="All">All</option>
 {% for t in tahun_list %}
@@ -57,6 +57,7 @@
 <thead class="table-header">
 <tr>
 <th>Unit</th>
+<th>LHPT</th>
 <th>DPP</th>
 <th>SP2DK</th>
 <th>LHP2DK</th>
@@ -75,7 +76,7 @@
 <td onclick="toggle('{{ s.unit_key }}')" style="cursor:pointer">
 + {{ s.unit_kerja }}
 </td>
-
+<td>{{ s.lhpt }}</td> 
 <td>{{ s.sp2dk|default:0 }}</td>
 <td>{{ s.sp2dk|default:0 }}</td>
 <td>{{ s.lhp2dk|default:0 }}</td>
@@ -94,13 +95,20 @@
 {% if d.unit_key == s.unit_key %}
 <tr class="{{ s.unit_key }}" style="display:none">
 <td>&nbsp;&nbsp;&nbsp;→ {{ d.petugas_pengawasan }}</td>
+
+<td>{{ d.lhpt }}</td>
 <td>{{ d.sp2dk }}</td>
 <td>{{ d.sp2dk }}</td>
 <td>{{ d.lhp2dk }}</td>
 <td>{{ d.outstanding }}</td>
-<td>Rp {{ d.potensi|floatformat:0|intcomma }}</td>
+
+<td>Rp {{ d.potensi_awal|floatformat:0|intcomma }}</td>
+<td>Rp {{ d.potensi_akhir|floatformat:0|intcomma }}</td>
 <td>Rp {{ d.realisasi|floatformat:0|intcomma }}</td>
-<td></td>
+
+<td class="{% if d.success_rate < 50 %}low{% elif d.success_rate < 80 %}mid{% else %}high{% endif %}">
+    {{ d.success_rate }}%
+</td>
 </tr>
 {% endif %}
 {% endfor %}
