@@ -1,19 +1,16 @@
 from django.shortcuts import render, redirect
-import requests
-
-from .models import SP2DK
-from django.db.models import Sum, Count, F
-from django.shortcuts import render, redirect
-from django.db.models.functions import ExtractMonth
-from calendar import month_name
-from .models import SP2DKClosed
-import pandas as pd
-from django.conf import settings
-import os
 from django.core.paginator import Paginator
+from django.contrib import messages
+from django.conf import settings
+import pandas as pd
+import requests
+from .models import DPP, SP2DKCurrent, SP2DKPrevious
+from decimal import Decimal, InvalidOperation
+from django.utils import timezone
+from django.db.models.functions import ExtractMonth
+from datetime import date
 
 API_LOGIN_URL = "http://127.0.0.1:8001/login"
-API_ME_URL = "http://127.0.0.1:8001/me"
 
 def require_login(view):
     def wrapper(request, *args, **kwargs):
@@ -28,24 +25,18 @@ def login_page(request):
         return redirect("dashboard")
 
     if request.method == "POST":
-        username = request.POST.get("username")
-        password = request.POST.get("password")
-
         res = requests.post(API_LOGIN_URL, data={
-            "username": username,
-            "password": password
+            "username": request.POST.get("username"),
+            "password": request.POST.get("password")
         })
 
         if res.status_code != 200:
             return render(request, "dashboard/login.html", {"error": True})
 
-        token = res.json()["access_token"]
-        request.session["token"] = token
-
+        request.session["token"] = res.json()["access_token"]
         return redirect("dashboard")
 
     return render(request, "dashboard/login.html")
-
 
 def logout_view(request):
     request.session.flush()
@@ -53,75 +44,61 @@ def logout_view(request):
 
 @require_login
 def dashboard(request):
-    tahun_sp2dk = request.GET.get("tahun_sp2dk", "All")
+    tahun = request.GET.get("tahun_sp2dk", "All")
     seksi = request.GET.get("seksi", "All")
     ar = request.GET.get("ar", "All")
     kesimpulan_filter = request.GET.get("kesimpulan", "All")
 
-    qs = SP2DK.objects.all()
+    dpp_qs = DPP.objects.all()
 
-    if tahun_sp2dk != "All":
-        qs = qs.filter(tahun_pajak=tahun_sp2dk)
-
+    if tahun != "All":
+        dpp_qs = dpp_qs.filter(tahun_pajak=tahun)
     if seksi != "All":
-        qs = qs.filter(unit_kerja=seksi)
-
+        dpp_qs = dpp_qs.filter(unit_kerja=seksi)
     if ar != "All":
-        qs = qs.filter(petugas_pengawasan=ar)
+        dpp_qs = dpp_qs.filter(petugas_pengawasan=ar)
 
-    excel = os.path.join(settings.BASE_DIR, "dashboard/data/terbitsp2dk-060103137-2025.xlsx")
-
-    df = pd.read_excel(excel, header=None, skiprows=5, usecols=range(23))
-
-    df.columns = [
-        "no","npwp","nama_wp","nip_ar","nama_ar",
-        "lhpt_nomor","lhpt_tanggal",
-        "nomor_sp2dk","tanggal_sp2dk","tahun_sp2dk",
-        "estimasi_potensi_sp2dk",
-        "nomor_lhp2dk","tanggal_lhp2dk",
-        "keputusan","kesimpulan",
-        "estimasi_potensi_lhp2dk","realisasi",
-        "dspp_nomor","dspp_tanggal",
-        "np2_nomor","np2_tanggal",
-        "sp2_nomor","sp2_tanggal",
-    ]
-
-    df["npwp"] = df["npwp"].astype(str).str.replace(".", "").str.strip()
-    df["tahun_sp2dk"] = pd.to_numeric(df["tahun_sp2dk"], errors="coerce")
-
-    db_df = pd.DataFrame(qs.values(
+    dpp_df = pd.DataFrame(dpp_qs.values(
         "npwp",
         "tahun_pajak",
-        "total_estimasi_dpp",
         "unit_kerja",
-        "petugas_pengawasan"
+        "petugas_pengawasan",
+        "nilai_potensi_awal_sp2dk"
     ))
 
-    db_df["npwp"] = db_df["npwp"].astype(str).str.replace(".", "").str.strip()
+    if dpp_df.empty:
+        return render(request, "dashboard/index.html", {"menu": "ringkasan"})
 
-    merged = pd.merge(
-        df,
-        db_df,
-        left_on=["npwp", "tahun_sp2dk"],
-        right_on=["npwp", "tahun_pajak"],
-        how="inner"
+    dpp_df["npwp"] = dpp_df["npwp"].astype(str).str.strip()
+
+    sp2dk_df = pd.DataFrame(
+        SP2DKCurrent.objects.values(
+            "npwp",
+            "tahun_pajak",
+            "nomor_sp2dk",
+            "nomor_lhp2dk",
+            "tanggal_sp2dk",
+            "kesimpulan",
+            "estimasi_potensi_lhp2dk",
+            "realisasi"
+        )
     )
 
-    merged["kesimpulan"] = merged["kesimpulan"].astype(str).str.strip()
+    sp2dk_df["npwp"] = sp2dk_df["npwp"].astype(str).str.strip()
+
+    merged = pd.merge(
+        sp2dk_df,
+        dpp_df,
+        on=["npwp", "tahun_pajak"],
+        how="inner"
+    )
 
     if kesimpulan_filter != "All":
         merged = merged[merged["kesimpulan"] == kesimpulan_filter]
 
-    merged["potensi_awal"] = pd.to_numeric(
-        merged["estimasi_potensi_sp2dk"], errors="coerce"
-    ).fillna(0).astype(float)
-    merged["potensi_akhir"] = pd.to_numeric(
-        merged["estimasi_potensi_lhp2dk"], errors="coerce"
-    ).fillna(0).astype(float)
-
-    merged["realisasi"] = pd.to_numeric(
-        merged["realisasi"], errors="coerce"
-    ).fillna(0).astype(float)
+    merged["potensi_awal"] = merged["nilai_potensi_awal_sp2dk"].fillna(0)
+    merged["potensi_akhir"] = merged["estimasi_potensi_lhp2dk"].fillna(0)
+    merged["realisasi"] = merged["realisasi"].fillna(0)
 
     seksi_summary = (
         merged.groupby("unit_kerja")
@@ -132,80 +109,63 @@ def dashboard(request):
             potensi_akhir=("potensi_akhir", "sum"),
             realisasi=("realisasi", "sum"),
         )
-    ).reset_index()
+        .reset_index()
+    )
 
     seksi_summary["outstanding"] = seksi_summary["sp2dk"] - seksi_summary["lhp2dk"]
-    
     seksi_summary["success_rate"] = (
         (seksi_summary["lhp2dk"] / seksi_summary["sp2dk"]) * 100
     ).round(2).fillna(0)
-
-    seksi_summary["unit_key"] = (
-        seksi_summary["unit_kerja"]
-        .str.replace(" ", "_")
-        .str.replace("/", "_")
-        .str.replace("-", "_")
-    )
 
     ar_detail = (
         merged.groupby(["unit_kerja", "petugas_pengawasan"])
         .agg(
             sp2dk=("nomor_sp2dk", "count"),
             lhp2dk=("nomor_lhp2dk", "count"),
-            outstanding=("nomor_sp2dk", "count"),
             potensi=("potensi_akhir", "sum"),
             realisasi=("realisasi", "sum"),
         )
-    ).reset_index()
-
-    ar_detail["unit_key"] = (
-        ar_detail["unit_kerja"]
-        .str.replace(" ", "_")
-        .str.replace("/", "_")
-        .str.replace("-", "_")
+        .reset_index()
     )
 
     total_dpp = int(seksi_summary["sp2dk"].sum())
     total_lhp2dk = int(seksi_summary["lhp2dk"].sum())
     total_outstanding = total_dpp - total_lhp2dk
 
-    total_potensi_awal = merged["potensi_awal"].sum()
-    total_potensi_akhir = merged["potensi_akhir"].sum()
-    total_realisasi = merged["realisasi"].sum()
+    total_potensi_awal = seksi_summary["potensi_awal"].sum()
+    total_potensi_akhir = seksi_summary["potensi_akhir"].sum()
+    total_realisasi = seksi_summary["realisasi"].sum()
 
     kes = merged["kesimpulan"].value_counts()
     pie_labels = kes.index.tolist()
     pie_values = kes.values.tolist()
 
-    merged["tanggal_sp2dk"] = merged["tanggal_sp2dk"].astype(str).str.strip()
     merged["tanggal_sp2dk"] = pd.to_datetime(
-        merged["tanggal_sp2dk"],
-        format="%d-%m-%Y",
-        errors="coerce"
+        merged["tanggal_sp2dk"], errors="coerce"
     )
     merged["bulan"] = merged["tanggal_sp2dk"].dt.month_name()
 
-
-    bar_data = merged["bulan"].value_counts().reindex([
+    order = [
         "January","February","March","April","May","June",
         "July","August","September","October","November","December"
-    ]).fillna(0)
+    ]
 
-    bar_labels = list(bar_data.index)
+    bar_data = merged["bulan"].value_counts().reindex(order).fillna(0)
+
     indo = {
         "January":"Januari","February":"Februari","March":"Maret","April":"April",
         "May":"Mei","June":"Juni","July":"Juli","August":"Agustus",
         "September":"September","October":"Oktober","November":"November","December":"Desember"
-        }
-    bar_labels = [indo[b] for b in bar_labels]
+    }
 
-    bar_values = [float(v) for v in bar_data.values]
+    bar_labels = [indo[b] for b in bar_data.index]
+    bar_values = bar_data.values.tolist()
 
     return render(request, "dashboard/index.html", {
         "menu": "ringkasan",
 
-        "seksi_summary": seksi_summary.to_dict(orient="records"),
-        "ar_detail": ar_detail.to_dict(orient="records"),
+        "seksi_summary": seksi_summary.to_dict("records"),
+        "ar_detail": ar_detail.to_dict("records"),
 
         "total_dpp": total_dpp,
         "total_lhp2dk": total_lhp2dk,
@@ -214,11 +174,11 @@ def dashboard(request):
         "total_potensi_akhir": total_potensi_akhir,
         "total_realisasi": total_realisasi,
 
-        "tahun_list": SP2DK.objects.values_list("tahun_pajak", flat=True).distinct(),
-        "seksi_list": SP2DK.objects.values_list("unit_kerja", flat=True).distinct(),
-        "ar_list": SP2DK.objects.values_list("petugas_pengawasan", flat=True).distinct(),
+        "tahun_list": DPP.objects.values_list("tahun_pajak", flat=True).distinct(),
+        "seksi_list": DPP.objects.values_list("unit_kerja", flat=True).distinct(),
+        "ar_list": DPP.objects.values_list("petugas_pengawasan", flat=True).distinct(),
 
-        "selected_tahun_sp2dk": tahun_sp2dk,
+        "selected_tahun_sp2dk": tahun,
         "selected_seksi": seksi,
         "selected_ar": ar,
         "selected_kesimpulan": kesimpulan_filter,
@@ -228,222 +188,340 @@ def dashboard(request):
         "bar_labels": bar_labels,
         "bar_values": bar_values,
     })
-
+    
 @require_login
 def sp2dk_closed(request):
 
-    file_path = os.path.join(settings.BASE_DIR, "dashboard/data/terbitsp2dk-060103137-2025.xlsx")
-
-    df = pd.read_excel(
-        file_path,
-        header=None,
-        skiprows=5,
-        usecols=range(23)
-    )
-
-    df.columns = [
-        "no",
-        "npwp",
-        "nama_wp",
-        "nip_ar",
-        "nama_ar",
-        "lhpt_nomor",
-        "lhpt_tanggal",
-        "nomor_sp2dk",
-        "tanggal_sp2dk",
-        "tahun_sp2dk",
-        "estimasi_potensi_sp2dk",
-        "nomor_lhp2dk",
-        "tanggal_lhp2dk",
-        "keputusan",
-        "kesimpulan",
-        "estimasi_potensi_lhp2dk",
-        "realisasi",
-        "dspp_nomor",
-        "dspp_tanggal",
-        "np2_nomor",
-        "np2_tanggal",
-        "sp2_nomor",
-        "sp2_tanggal",
-    ]
-
-    df["tahun_sp2dk"] = pd.to_numeric(df["tahun_sp2dk"], errors="coerce").astype("Int64")
-    df["nama_ar"] = df["nama_ar"].astype(str).str.strip()
-
-    date_cols = [
-        "lhpt_tanggal",
-        "tanggal_sp2dk",
-        "tanggal_lhp2dk",
-        "dspp_tanggal",
-        "np2_tanggal",
-        "sp2_tanggal",
-    ]
-
-    for col in date_cols:
-        df[col] = pd.to_datetime(df[col], errors="coerce", dayfirst=True)
-
-    df["hari"] = (
-        pd.to_datetime(df["tanggal_lhp2dk"], format="%d-%m-%Y", errors="coerce")
-        - pd.to_datetime(df["tanggal_sp2dk"], format="%d-%m-%Y", errors="coerce")
-    ).dt.days
-
-    df["hari"] = df["hari"].astype("Int64")
-    
-    df["tanggal_sp2dk_dt"] = pd.to_datetime(df["tanggal_sp2dk"], errors="coerce")
-    df["tanggal_lhp2dk_dt"] = pd.to_datetime(df["tanggal_lhp2dk"], errors="coerce")
-    
-    df["status"] = df["nomor_lhp2dk"].apply(
-        lambda x: "Closed" if pd.notna(x) and str(x).strip() != "" else "Open"
-    )
-    
-    df["waktu_closed"] = df["hari"]
-
-    money_cols = [
-        "estimasi_potensi_sp2dk",
-        "estimasi_potensi_lhp2dk",
-        "realisasi",
-    ]
-    
-    for col in ["tanggal_sp2dk_dt", "tanggal_lhp2dk_dt"]:
-        df[col.replace("_dt", "")] = df[col].dt.strftime("%d-%m-%Y")
-        df[col.replace("_dt", "")] = df[col.replace("_dt", "")].fillna("").replace("nan", "")
-
-    for col in money_cols:
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(float)
-
-    tahun_list = sorted(df["tahun_sp2dk"].dropna().unique().tolist())
-    ar_list = sorted(df["nama_ar"].dropna().unique().tolist())
+    qs = SP2DKCurrent.objects.all()
 
     tahun = request.GET.get("tahun", "All")
     ar = request.GET.get("ar", "All")
-    kesimpulan = request.GET.get("kesimpulan", "All")
     min_hari = request.GET.get("min_hari")
     max_hari = request.GET.get("max_hari")
-    status = request.GET.get("status", "All")
-
-    df_filtered = df.copy()
 
     if tahun != "All":
-        df_filtered = df_filtered[df_filtered["tahun_sp2dk"] == int(tahun)]
+        qs = qs.filter(tahun_pajak=tahun)
 
     if ar != "All":
-        df_filtered = df_filtered[df_filtered["nama_ar"] == ar]
+        qs = qs.filter(nama_ar=ar)
 
-    if kesimpulan != "All":
-        df_filtered = df_filtered[df_filtered["kesimpulan"] == kesimpulan]
+    today = date.today()  # ✅ FIX
 
-    if min_hari:
-        df_filtered = df_filtered[df_filtered["hari"] >= int(min_hari)]
+    rows = []
 
-    if max_hari:
-        df_filtered = df_filtered[df_filtered["hari"] <= int(max_hari)]
-        
-    if status != "All":
-        df_filtered = df_filtered[df_filtered["status"] == status]
+    for obj in qs:
+        if obj.tanggal_sp2dk is None:
+            continue
 
-    total_potensi = df_filtered["estimasi_potensi_sp2dk"].sum()
-    total_realisasi = df_filtered["realisasi"].sum()
+        if obj.tanggal_lhp2dk:
+            hari = (obj.tanggal_lhp2dk - obj.tanggal_sp2dk).days
+            status = "Closed"
+            waktu_closed = hari
+        else:
+            hari = (today - obj.tanggal_sp2dk).days
+            status = "Open"
+            waktu_closed = None
 
-    data = df_filtered.to_dict(orient="records")
-    page_number = request.GET.get("page", 1)
-    paginator = Paginator(data, 10)
-    page_obj = paginator.get_page(page_number)
+        if min_hari and hari < int(min_hari):
+            continue
+        if max_hari and hari > int(max_hari):
+            continue
+
+        rows.append({
+            "nip_ar": obj.nip_ar,
+            "nama_ar": obj.nama_ar,
+            "npwp": obj.npwp,
+            "nama_wp": obj.nama_wp,
+            "nomor_sp2dk": obj.nomor_sp2dk,
+            "tanggal_sp2dk": obj.tanggal_sp2dk,
+            "tahun_sp2dk": obj.tahun_pajak,
+            "estimasi_potensi_sp2dk": obj.estimasi_potensi_sp2dk,
+            "nomor_lhp2dk": obj.nomor_lhp2dk,
+            "tanggal_lhp2dk": obj.tanggal_lhp2dk,
+            "kesimpulan": obj.kesimpulan,
+            "estimasi_potensi_lhp2dk": obj.estimasi_potensi_lhp2dk,
+            "realisasi": obj.realisasi,
+            "hari": hari,
+            "status": status,
+            "waktu_closed": waktu_closed,
+        })
+
+    paginator = Paginator(rows, 10)
+    page = paginator.get_page(request.GET.get("page", 1))
 
     return render(request, "dashboard/sp2dk_closed.html", {
         "menu": "closed",
-        "data": page_obj,
-
-        "tahun_list": tahun_list,
-        "ar_list": ar_list,
-
+        "data": page,
+        "tahun_list": SP2DKCurrent.objects.values_list("tahun_pajak", flat=True).distinct(),
+        "ar_list": SP2DKCurrent.objects.values_list("nama_ar", flat=True).distinct(),
         "selected_tahun": tahun,
         "selected_ar": ar,
-        "selected_kesimpulan": kesimpulan,
-
-        "total_potensi": total_potensi,
-        "total_realisasi": total_realisasi,
-
         "min_hari": min_hari,
         "max_hari": max_hari,
     })
-   
-@require_login 
+
+@require_login
 def sp2dk_outstanding(request):
 
-    file_path = os.path.join(settings.BASE_DIR, "dashboard/data/terbitsp2dk-060103137-2024.xlsx")
-    df = pd.read_excel(file_path, header=None, skiprows=5, usecols=range(23))
-    
-    df.columns = [
-        "no","npwp","nama_wp","nip_ar","nama_ar",
-        "lhpt_nomor","lhpt_tanggal",
-        "nomor_sp2dk","tanggal_sp2dk","tahun_sp2dk",
-        "estimasi_potensi_sp2dk",
-        "nomor_lhp2dk","tanggal_lhp2dk",
-        "keputusan","kesimpulan",
-        "estimasi_potensi_lhp2dk","realisasi",
-        "dspp_nomor","dspp_tanggal",
-        "np2_nomor","np2_tanggal",
-        "sp2_nomor","sp2_tanggal",
-    ]
-
-    df["tahun_sp2dk"] = pd.to_numeric(df["tahun_sp2dk"], errors="coerce").astype("Int64")
-    df["nama_ar"] = df["nama_ar"].astype(str).str.strip()
-
-    df["tanggal_sp2dk_dt"] = pd.to_datetime(df["tanggal_sp2dk"], errors="coerce")
-
-    df = df[df["nomor_lhp2dk"].isna()]
-
-    today = pd.Timestamp.today().normalize()
-    df["hari"] = (today - df["tanggal_sp2dk_dt"]).dt.days
-    df["hari"] = df["hari"].astype("Int64")
-
-    df["estimasi_potensi_sp2dk"] = pd.to_numeric(df["estimasi_potensi_sp2dk"], errors="coerce").fillna(0)
-    df["realisasi"] = pd.to_numeric(df["realisasi"], errors="coerce").fillna(0)
+    qs = SP2DKPrevious.objects.filter(nomor_lhp2dk__isnull=True)
 
     tahun = request.GET.get("tahun", "All")
-    ar    = request.GET.get("ar", "All")
-
+    ar = request.GET.get("ar", "All")
     min_hari = request.GET.get("min_hari")
     max_hari = request.GET.get("max_hari")
 
     if tahun != "All":
-        df = df[df["tahun_sp2dk"] == int(tahun)]
+        qs = qs.filter(tahun_pajak=tahun)
 
     if ar != "All":
-        df = df[df["nama_ar"] == ar]
+        qs = qs.filter(nama_ar=ar)
 
-    if min_hari:
-        df = df[df["hari"] >= int(min_hari)]
+    today = date.today()  # ✅ FIX
 
-    if max_hari:
-        df = df[df["hari"] <= int(max_hari)]
+    rows = []
 
-    tahun_list = sorted(df["tahun_sp2dk"].dropna().unique().tolist())
-    ar_list = sorted(df["nama_ar"].dropna().unique().tolist())
+    for obj in qs:
+        if obj.tanggal_sp2dk is None:
+            continue
 
-    df["tanggal_sp2dk"] = df["tanggal_sp2dk_dt"].dt.strftime("%d-%m-%Y").fillna("-")
+        hari = (today - obj.tanggal_sp2dk).days
 
-    paginator = Paginator(df.to_dict(orient="records"), 15)
-    page = request.GET.get("page", 1)
-    data_page = paginator.get_page(page)
+        if min_hari and hari < int(min_hari):
+            continue
+        if max_hari and hari > int(max_hari):
+            continue
 
-    total_potensi = df["estimasi_potensi_sp2dk"].sum()
-    total_realisasi = df["realisasi"].sum()
+        rows.append({
+            "npwp": obj.npwp,
+            "nama_wp": obj.nama_wp,
+            "nama_ar": obj.nama_ar,
+            "nomor_sp2dk": obj.nomor_sp2dk,
+            "tanggal_sp2dk": obj.tanggal_sp2dk,
+            "tahun_sp2dk": obj.tahun_pajak,
+            "estimasi_potensi_sp2dk": obj.estimasi_potensi_sp2dk,
+            "realisasi": obj.realisasi,
+            "hari": hari,
+        })
 
-    return render(request, "dashboard/sp2dk_outstanding.html",{
+    paginator = Paginator(rows, 15)
+    page = paginator.get_page(request.GET.get("page", 1))
+
+    return render(request, "dashboard/sp2dk_outstanding.html", {
         "menu": "outstanding",
-
-        "data": data_page,
-
-        "tahun_list": tahun_list,
-        "ar_list": ar_list,
-
+        "data": page,
+        "tahun_list": SP2DKPrevious.objects.values_list("tahun_pajak", flat=True).distinct(),
+        "ar_list": SP2DKPrevious.objects.values_list("nama_ar", flat=True).distinct(),
         "selected_tahun": tahun,
         "selected_ar": ar,
-
-        "total_potensi": total_potensi,
-        "total_realisasi": total_realisasi,
-
         "min_hari": min_hari,
         "max_hari": max_hari,
     })
+    
+@require_login
+def upload_page(request):
+    return render(request, "dashboard/upload_page.html", {
+        "menu": "upload"
+    })
+
+def to_decimal(val):
+    try:
+        if pd.isna(val):
+            return Decimal("0")
+        return Decimal(str(val))
+    except (InvalidOperation, ValueError):
+        return Decimal("0")
+    
+def to_int(val):
+    try:
+        if pd.isna(val):
+            return 0
+        return int(val)
+    except:
+        return 0
+    
+def to_date(val):
+    try:
+        if pd.isna(val):
+            return None
+        return pd.to_datetime(val).date()
+    except:
+        return None
+
+@require_login
+def upload_dpp(request):
+    if request.method == "POST":
+        file = request.FILES.get("file")
+        if not file:
+            messages.error(request, "File DPP wajib diupload")
+            return redirect("upload_page")
+
+        try:
+            df = pd.read_csv(file, sep=";", encoding="latin1")
+
+            now = timezone.now()
+            current_month = now.month
+            current_year = now.year
+
+            last_data = DPP.objects.order_by("-created_time").first()
+
+            if last_data and last_data.created_time.year != current_year:
+                DPP.objects.all().delete()
+            if 1 <= current_month <= 6:
+                DPP.objects.filter(
+                    created_time__year=current_year,
+                    created_time__month__gte=1,
+                    created_time__month__lte=6
+                ).delete()
+
+            elif 7 <= current_month <= 12:
+                DPP.objects.filter(
+                    created_time__year=current_year,
+                    created_time__month__gte=7,
+                    created_time__month__lte=12
+                ).delete()
+
+            objs = []
+
+            for _, r in df.iterrows():
+                objs.append(DPP(
+                    no=to_int(r["NO"]),
+                    npwp=str(r["NPWP"]).replace(".", "").strip(),
+                    nama_wp=r["Nama WP"],
+                    unit_kerja=r["Unit Kerja"],
+                    petugas_pengawasan=r["Petugas Pengawasan"],
+                    tahun_pajak=to_int(r["Tahun Pajak"]),
+
+                    nilai_potensi_lha=to_decimal(r["Nilai Potensi LHA"]),
+                    nilai_data_pemicu=to_decimal(r["Nilai Data Pemicu"]),
+                    nilai_potensi_analisis_mandiri=to_decimal(r["Nilai Potensi Analisis Mandiri"]),
+
+                    estimasi_lha_mandiri=to_decimal(
+                        r["Penghitungan Estimasi Potensi LHA dan Analisis Mandiri"]
+                    ),
+                    estimasi_data_lain=to_decimal(
+                        r["Penghitungan Estimasi Potensi Data Pemicu dan/atau Data Lainnya"]
+                    ),
+
+                    total_estimasi_dpp=to_decimal(
+                        r["Total Estimasi Potensi DPP"]
+                    ),
+
+                    jumlah_sp2dk=to_int(r["Jumlah SP2DK"]),
+                    nilai_potensi_awal_sp2dk=to_decimal(
+                        r["Nilai Potensi Awal SP2DK"]
+                    ),
+
+                    jumlah_lhp2dk_selesai=to_int(
+                        r["Jumlah LHP2DK Selesai"]
+                    ),
+                    nilai_lhp2dk_selesai=to_decimal(
+                        r["Nilai Potensi Akhir LHP2DK Selesai"]
+                    ),
+
+                    jumlah_usul_pemeriksaan=to_int(
+                        r["Jumlah LHP2DK Usulan Pemeriksaan"]
+                    ),
+                    nilai_usul_pemeriksaan=to_decimal(
+                        r["Nilai Potensi Akhir LHP2DK Usulan Pemeriksaan"]
+                    ),
+
+                    jumlah_usul_bukper=to_int(
+                        r["Jumlah LHP2DK Usulan Bukper"]
+                    ),
+                    nilai_usul_bukper=to_decimal(
+                        r["Nilai Potensi Akhir LHP2DK Usulan Bukper"]
+                    ),
+
+                    jumlah_dalam_pengawasan=to_int(
+                        r["Jumlah LHP2DK Dalam Pengawasan"]
+                    ),
+                    nilai_dalam_pengawasan=to_decimal(
+                        r["Nilai Potensi Akhir LHP2DK Dalam Pengawasan"]
+                    ),
+
+                    realisasi=to_decimal(r["Realisasi"]),
+                    created_time=now,
+                ))
+
+            DPP.objects.bulk_create(objs)
+
+            periode = "Jan–Jun" if current_month <= 6 else "Jul–Des"
+            messages.success(
+                request,
+                f"Upload DPP berhasil ({len(objs)} data). Tahun {current_year}, Periode {periode}"
+            )
+            return redirect("upload_page")
+
+        except Exception as e:
+            messages.error(request, f"Gagal upload DPP: {e}")
+            return redirect("upload_page")
+
+    return redirect("upload_page")
+
+def _import_sp2dk(df, model):
+    model.objects.all().delete()
+    objs = []
+
+    for _, r in df.iterrows():
+        objs.append(model(
+            npwp=str(r[1]).replace(".", "").strip(),
+            nama_wp=r[2],
+            nip_ar=r[3],
+            nama_ar=r[4],
+
+            lhpt_nomor=r[5],
+            lhpt_tanggal=to_date(r[6]),
+
+            nomor_sp2dk=r[7],
+            tanggal_sp2dk=to_date(r[8]),
+            tahun_pajak=to_int(r[9]),
+            estimasi_potensi_sp2dk=to_decimal(r[10]),
+
+            nomor_lhp2dk=r[11],
+            tanggal_lhp2dk=to_date(r[12]),
+            keputusan=r[13],
+            kesimpulan=r[14],
+            estimasi_potensi_lhp2dk=to_decimal(r[15]),
+            realisasi=to_decimal(r[16]),
+
+            dspp_nomor=r[17],
+            dspp_tanggal=to_date(r[18]),
+
+            np2_nomor=r[19],
+            np2_tanggal=to_date(r[20]),
+
+            sp2_nomor=r[21],
+            sp2_tanggal=to_date(r[22]),
+        ))
+
+    model.objects.bulk_create(objs)
+
+@require_login
+def upload_sp2dk_current(request):
+    if request.method == "POST":
+        df = pd.read_excel(
+            request.FILES["file"],
+            header=None
+        )
+
+        df = df.iloc[5:]
+
+        _import_sp2dk(df, SP2DKCurrent)
+        messages.success(request, "Upload SP2DK Tahun Berjalan berhasil")
+
+    return redirect("upload_page")
+
+@require_login
+def upload_sp2dk_previous(request):
+    if request.method == "POST":
+        df = pd.read_excel(
+            request.FILES["file"],
+            header=None
+        )
+
+        df = df.iloc[5:]
+
+        _import_sp2dk(df, SP2DKPrevious)
+        messages.success(request, "Upload SP2DK Tahun Sebelumnya berhasil")
+
+    return redirect("upload_page")

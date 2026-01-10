@@ -116,7 +116,7 @@ body{
     </div>
     <br />
 
-    <a href="/" style="text-decoration:none; color:black">
+    <a href="/dashboard" style="text-decoration:none; color:black">
         <div class="sidebar-item {% if menu == 'ringkasan' %}active{% endif %}">
             RINGKASAN
         </div>
@@ -131,6 +131,11 @@ body{
     <a href="/sp2dk-outstanding" style="text-decoration:none; color:black">
         <div class="sidebar-item {% if menu == 'outstanding' %}active{% endif %}">
             OUTSTANDING
+        </div>
+    </a>
+    <a href="{% url 'upload_page' %}" style="text-decoration:none; color:black">
+        <div class="sidebar-item {% if menu == 'upload' %}active{% endif %}">
+            UPLOAD DATA
         </div>
     </a>
     <div class="logout-box">
