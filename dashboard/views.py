@@ -102,6 +102,7 @@ def dashboard(request):
     seksi = request.GET.get("seksi", "All")
     ar = request.GET.get("ar", "All")
     kesimpulan_filter = request.GET.get("kesimpulan", "All")
+    semester = request.GET.get("semester", "All")
 
     dpp_qs = DPP.objects.all()
 
@@ -111,6 +112,11 @@ def dashboard(request):
         dpp_qs = dpp_qs.filter(unit_kerja=seksi)
     if ar != "All":
         dpp_qs = dpp_qs.filter(petugas_pengawasan=ar)
+
+    if semester == "1":
+        dpp_qs = dpp_qs.filter(created_time__month__range=(1, 6))
+    elif semester == "2":
+        dpp_qs = dpp_qs.filter(created_time__month__range=(7, 12))
 
     dpp_df = pd.DataFrame(dpp_qs.values(
         "npwp",
@@ -157,8 +163,15 @@ def dashboard(request):
         how="left"
     )
 
-    merged["is_lhpt"] = merged["lhpt_nomor"].notna()
-    merged["is_lhp2dk"] = merged["nomor_lhp2dk"].notna()
+    merged["lhpt_ada"] = merged["lhpt_nomor"].notna()
+    merged["sp2dk_ada"] = merged["nomor_sp2dk"].notna()
+    merged["lhp2dk_ada"] = merged["nomor_lhp2dk"].notna()
+
+    merged["lhpt_sudah_sp2dk"] = merged["lhpt_ada"] & merged["sp2dk_ada"]
+    merged["lhpt_belum_sp2dk"] = merged["lhpt_ada"] & ~merged["sp2dk_ada"]
+
+    merged["sp2dk_sudah_lhp2dk"] = merged["sp2dk_ada"] & merged["lhp2dk_ada"]
+    merged["sp2dk_belum_lhp2dk"] = merged["sp2dk_ada"] & ~merged["lhp2dk_ada"]
 
     merged["potensi_awal"] = merged["nilai_potensi_awal_sp2dk"].fillna(0)
     merged["potensi_akhir"] = merged["estimasi_potensi_lhp2dk"].fillna(0)
@@ -166,16 +179,20 @@ def dashboard(request):
     if kesimpulan_filter != "All":
         merged = merged[merged["kesimpulan"] == kesimpulan_filter]
 
-    unique_sp2dk = merged.drop_duplicates(
-        subset=["npwp", "nomor_sp2dk"]
-    )
-
+    unique_sp2dk = merged.drop_duplicates(subset=["npwp", "nomor_sp2dk"])
     seksi_summary = (
         unique_sp2dk.groupby("unit_kerja")
         .agg(
-            sp2dk=("nomor_sp2dk", "count"),
-            lhpt=("is_lhpt", "sum"),
-            lhp2dk=("is_lhp2dk", "sum"),
+            dpp=("npwp", "count"),
+
+            lhpt_total=("lhpt_ada", "sum"),
+            lhpt_sudah_sp2dk=("lhpt_sudah_sp2dk", "sum"),
+            lhpt_belum_sp2dk=("lhpt_belum_sp2dk", "sum"),
+
+            sp2dk_total=("sp2dk_ada", "sum"),
+            sp2dk_sudah_lhp2dk=("sp2dk_sudah_lhp2dk", "sum"),
+            sp2dk_belum_lhp2dk=("sp2dk_belum_lhp2dk", "sum"),
+
             potensi_awal=("potensi_awal", "sum"),
             potensi_akhir=("potensi_akhir", "sum"),
             realisasi=("realisasi", "sum"),
@@ -183,9 +200,16 @@ def dashboard(request):
         .reset_index()
     )
 
-    seksi_summary["outstanding"] = seksi_summary["sp2dk"] - seksi_summary["lhp2dk"]
+    seksi_summary["lhpt_pct"] = (
+        seksi_summary["lhpt_sudah_sp2dk"] / seksi_summary["lhpt_total"] * 100
+    ).replace([float("inf")], 0).fillna(0).round(2)
+
+    seksi_summary["sp2dk_pct"] = (
+        seksi_summary["sp2dk_sudah_lhp2dk"] / seksi_summary["sp2dk_total"] * 100
+    ).replace([float("inf")], 0).fillna(0).round(2)
+
     seksi_summary["success_rate"] = (
-        (seksi_summary["realisasi"] / seksi_summary["potensi_awal"]) * 100
+        seksi_summary["realisasi"] / seksi_summary["potensi_awal"] * 100
     ).replace([float("inf")], 0).fillna(0).round(2)
 
     seksi_summary["unit_key"] = (
@@ -194,13 +218,20 @@ def dashboard(request):
         .str.replace("/", "_")
         .str.replace("-", "_")
     )
-    
+
     ar_detail = (
         unique_sp2dk.groupby(["unit_kerja", "petugas_pengawasan"])
         .agg(
-            sp2dk=("nomor_sp2dk", "count"),
-            lhpt=("is_lhpt", "sum"),
-            lhp2dk=("is_lhp2dk", "sum"),
+            dpp=("npwp", "count"),
+
+            lhpt_total=("lhpt_ada", "sum"),
+            lhpt_sudah_sp2dk=("lhpt_sudah_sp2dk", "sum"),
+            lhpt_belum_sp2dk=("lhpt_belum_sp2dk", "sum"),
+
+            sp2dk_total=("sp2dk_ada", "sum"),
+            sp2dk_sudah_lhp2dk=("sp2dk_sudah_lhp2dk", "sum"),
+            sp2dk_belum_lhp2dk=("sp2dk_belum_lhp2dk", "sum"),
+
             potensi_awal=("potensi_awal", "sum"),
             potensi_akhir=("potensi_akhir", "sum"),
             realisasi=("realisasi", "sum"),
@@ -208,7 +239,13 @@ def dashboard(request):
         .reset_index()
     )
 
-    ar_detail["outstanding"] = ar_detail["sp2dk"] - ar_detail["lhp2dk"]
+    ar_detail["lhpt_pct"] = (
+        ar_detail["lhpt_sudah_sp2dk"] / ar_detail["lhpt_total"] * 100
+    ).replace([float("inf")], 0).fillna(0).round(2)
+
+    ar_detail["sp2dk_pct"] = (
+        ar_detail["sp2dk_sudah_lhp2dk"] / ar_detail["sp2dk_total"] * 100
+    ).replace([float("inf")], 0).fillna(0).round(2)
 
     ar_detail["success_rate"] = (
         ar_detail["realisasi"] / ar_detail["potensi_awal"] * 100
@@ -221,15 +258,21 @@ def dashboard(request):
         .str.replace("-", "_")
     )
 
-    total_dpp = int(seksi_summary["sp2dk"].sum())
-    total_lhp2dk = int(seksi_summary["lhp2dk"].sum())
-    total_outstanding = total_dpp - total_lhp2dk
+    total_dpp = int(seksi_summary["dpp"].sum())
+
+    total_lhp2dk = int(
+        seksi_summary["sp2dk_sudah_lhp2dk"].sum()
+    )
+
+    total_outstanding = int(
+        seksi_summary["sp2dk_belum_lhp2dk"].sum()
+    )
 
     total_potensi_awal = seksi_summary["potensi_awal"].sum()
     total_potensi_akhir = seksi_summary["potensi_akhir"].sum()
     total_realisasi = seksi_summary["realisasi"].sum()
 
-    kes = merged["kesimpulan"].value_counts()
+    kes = merged["kesimpulan"].fillna("Belum Ada Kesimpulan").value_counts()
     pie_labels = kes.index.tolist()
     pie_values = kes.values.tolist()
 
@@ -256,21 +299,27 @@ def dashboard(request):
 
     return render(request, "dashboard/index.html", {
         "menu": "ringkasan",
+
         "seksi_summary": seksi_summary.to_dict("records"),
         "ar_detail": ar_detail.to_dict("records"),
+
         "total_dpp": total_dpp,
         "total_lhp2dk": total_lhp2dk,
         "total_outstanding": total_outstanding,
         "total_potensi_awal": total_potensi_awal,
         "total_potensi_akhir": total_potensi_akhir,
         "total_realisasi": total_realisasi,
+
         "tahun_list": DPP.objects.values_list("tahun_pajak", flat=True).distinct(),
         "seksi_list": DPP.objects.values_list("unit_kerja", flat=True).distinct(),
         "ar_list": DPP.objects.values_list("petugas_pengawasan", flat=True).distinct(),
+
         "selected_tahun_sp2dk": tahun,
         "selected_seksi": seksi,
         "selected_ar": ar,
         "selected_kesimpulan": kesimpulan_filter,
+        "selected_semester": semester,
+
         "pie_labels": pie_labels,
         "pie_values": pie_values,
         "bar_labels": bar_labels,

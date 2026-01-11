@@ -5,110 +5,136 @@
 <h4 class="mb-3 fw-bold">Dashboard Ringkasan SP2DK</h4>
 
 <form method="get" class="card-box mb-3">
+  <div class="row">
 
-<div class="row">
+    <div class="col-md-2">
+      <label>Tahun Pajak</label>
+      <select name="tahun_sp2dk" class="form-control" onchange="this.form.submit()">
+        <option value="All">All</option>
+        {% for t in tahun_list %}
+          <option value="{{ t }}" {% if selected_tahun_sp2dk == t %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </div>
 
-<div class="col-md-2">
-<label>Tahun Pajak</label>
-<select name="tahun_sp2dk" class="form-control" onchange="this.form.submit()">
-<option value="All">All</option>
-{% for t in tahun_list %}
-<option value="{{ t }}" {% if selected_tahun_sp2dk == t %}selected{% endif %}>{{ t }}</option>
-{% endfor %}
-</select>
-</div>
+    <div class="col-md-2">
+      <label>Seksi</label>
+      <select name="seksi" class="form-control" onchange="this.form.submit()">
+        <option value="All">All</option>
+        {% for s in seksi_list %}
+          <option value="{{ s }}" {% if selected_seksi == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
 
-<div class="col-md-2">
-<label>Seksi</label>
-<select name="seksi" class="form-control" onchange="this.form.submit()">
-<option value="All">All</option>
-{% for s in seksi_list %}
-<option value="{{ s }}" {% if selected_seksi == s %}selected{% endif %}>{{ s }}</option>
-{% endfor %}
-</select>
-</div>
+    <div class="col-md-2">
+      <label>AR</label>
+      <select name="ar" class="form-control" onchange="this.form.submit()">
+        <option value="All">All</option>
+        {% for a in ar_list %}
+          <option value="{{ a }}" {% if selected_ar == a %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
 
-<div class="col-md-2">
-<label>AR</label>
-<select name="ar" class="form-control" onchange="this.form.submit()">
-<option value="All">All</option>
-{% for a in ar_list %}
-<option value="{{ a }}" {% if selected_ar == a %}selected{% endif %}>{{ a }}</option>
-{% endfor %}
-</select>
-</div>
+    <div class="col-md-2">
+      <label>Kesimpulan</label>
+      <select name="kesimpulan" class="form-control" onchange="this.form.submit()">
+        <option value="All">All</option>
+        {% for k in pie_labels %}
+          <option value="{{ k }}" {% if selected_kesimpulan == k %}selected{% endif %}>{{ k }}</option>
+        {% endfor %}
+      </select>
+    </div>
 
-<div class="col-md-2">
-<label>Kesimpulan</label>
-<select name="kesimpulan" class="form-control" onchange="this.form.submit()">
-<option value="All">All</option>
-{% for k in pie_labels %}
-<option value="{{ k }}" {% if selected_kesimpulan == k %}selected{% endif %}>{{ k }}</option>
-{% endfor %}
-</select>
-</div>
+    <div class="col-md-2">
+      <label>Semester</label>
+      <select name="semester" class="form-control" onchange="this.form.submit()">
+        <option value="All" {% if selected_semester == "All" %}selected{% endif %}>All</option>
+        <option value="1" {% if selected_semester == "1" %}selected{% endif %}>Semester 1</option>
+        <option value="2" {% if selected_semester == "2" %}selected{% endif %}>Semester 2</option>
+      </select>
+    </div>
 
-</div>
+  </div>
 </form>
 
 <div class="card-box">
-
 <table class="table table-bordered">
+
 <thead class="table-header">
 <tr>
-<th>Unit</th>
-<th>LHPT</th>
-<th>DPP</th>
-<th>SP2DK</th>
-<th>LHP2DK</th>
-<th>Open</th>
-<th>Potensi Awal</th>
-<th>Potensi Akhir</th>
-<th>Realisasi</th>
-<th>Success Rate</th>
+  <th rowspan="2">Unit / AR</th>
+  <th rowspan="2">Jumlah DPP</th>
+
+  <th colspan="3">LHPT</th>
+  <th colspan="3">SP2DK</th>
+
+  <th rowspan="2">Potensi Awal</th>
+  <th rowspan="2">Potensi Akhir</th>
+  <th rowspan="2">Realisasi</th>
+  <th rowspan="2">Success Rate</th>
+</tr>
+<tr>
+  <th>Sudah SP2DK</th>
+  <th>%</th>
+  <th>Belum SP2DK</th>
+
+  <th>Sudah LHP2DK</th>
+  <th>%</th>
+  <th>Belum LHP2DK</th>
 </tr>
 </thead>
 
 <tbody>
 
 {% for s in seksi_summary %}
-<tr style="background:#eef3ff; font-weight:bold">
-<td onclick="toggle('{{ s.unit_key }}')" style="cursor:pointer">
-+ {{ s.unit_kerja }}
-</td>
-<td>{{ s.lhpt }}</td> 
-<td>{{ s.sp2dk|default:0 }}</td>
-<td>{{ s.sp2dk|default:0 }}</td>
-<td>{{ s.lhp2dk|default:0 }}</td>
-<td>{{ s.outstanding|default:0 }}</td>
+<tr style="background:#eef3ff;font-weight:bold">
+  <td onclick="toggle('{{ s.unit_key }}')" style="cursor:pointer">
+    + {{ s.unit_kerja }}
+  </td>
 
-<td>Rp {{ s.potensi_awal|floatformat:0|intcomma }}</td>
-<td>Rp {{ s.potensi_akhir|floatformat:0|intcomma }}</td>
-<td>Rp {{ s.realisasi|floatformat:0|intcomma }}</td>
+  <td>{{ s.dpp }}</td>
 
-<td class="{% if s.success_rate < 50 %}low{% elif s.success_rate < 80 %}mid{% else %}high{% endif %}">
-{{ s.success_rate }}%
-</td>
+  <td>{{ s.lhpt_sudah_sp2dk }}</td>
+  <td>{{ s.lhpt_pct }}%</td>
+  <td>{{ s.lhpt_belum_sp2dk }}</td>
+
+  <td>{{ s.sp2dk_sudah_lhp2dk }}</td>
+  <td>{{ s.sp2dk_pct }}%</td>
+  <td>{{ s.sp2dk_belum_lhp2dk }}</td>
+
+  <td>Rp {{ s.potensi_awal|floatformat:0|intcomma }}</td>
+  <td>Rp {{ s.potensi_akhir|floatformat:0|intcomma }}</td>
+  <td>Rp {{ s.realisasi|floatformat:0|intcomma }}</td>
+
+  <td class="{% if s.success_rate < 50 %}low{% elif s.success_rate < 80 %}mid{% else %}high{% endif %}">
+    {{ s.success_rate }}%
+  </td>
 </tr>
 
 {% for d in ar_detail %}
 {% if d.unit_key == s.unit_key %}
 <tr class="{{ s.unit_key }}" style="display:none">
-<td>&nbsp;&nbsp;&nbsp;→ {{ d.petugas_pengawasan }}</td>
+  <td>&nbsp;&nbsp;&nbsp;→ {{ d.petugas_pengawasan }}</td>
 
-<td>{{ d.lhpt }}</td>
-<td>{{ d.sp2dk }}</td>
-<td>{{ d.sp2dk }}</td>
-<td>{{ d.lhp2dk }}</td>
-<td>{{ d.outstanding }}</td>
+  <td>{{ d.dpp }}</td>
 
-<td>Rp {{ d.potensi_awal|floatformat:0|intcomma }}</td>
-<td>Rp {{ d.potensi_akhir|floatformat:0|intcomma }}</td>
-<td>Rp {{ d.realisasi|floatformat:0|intcomma }}</td>
+  <td>{{ d.lhpt_sudah_sp2dk }}</td>
+  <td>{{ d.lhpt_pct }}%</td>
+  <td>{{ d.lhpt_belum_sp2dk }}</td>
 
-<td class="{% if d.success_rate < 50 %}low{% elif d.success_rate < 80 %}mid{% else %}high{% endif %}">
+  <td>{{ d.sp2dk_sudah_lhp2dk }}</td>
+  <td>{{ d.sp2dk_pct }}%</td>
+  <td>{{ d.sp2dk_belum_lhp2dk }}</td>
+
+  <td>Rp {{ d.potensi_awal|floatformat:0|intcomma }}</td>
+  <td>Rp {{ d.potensi_akhir|floatformat:0|intcomma }}</td>
+  <td>Rp {{ d.realisasi|floatformat:0|intcomma }}</td>
+
+  <td class="{% if d.success_rate < 50 %}low{% elif d.success_rate < 80 %}mid{% else %}high{% endif %}">
     {{ d.success_rate }}%
-</td>
+  </td>
 </tr>
 {% endif %}
 {% endfor %}
@@ -117,53 +143,17 @@
 
 </tbody>
 </table>
-
 </div>
-<br />
+
+<br>
+
 <div class="row text-center">
-
-<div class="col-md-2">
-<div class="card shadow-sm p-2">
-<b>Total DPP</b>
-<h5>{{ total_dpp|intcomma }}</h5>
-</div>
-</div>
-
-<div class="col-md-2">
-<div class="card shadow-sm p-2">
-<b>Total LHP2DK</b>
-<h5>{{ total_lhp2dk|intcomma }}</h5>
-</div>
-</div>
-
-<div class="col-md-2">
-<div class="card shadow-sm p-2">
-<b>Total Outstanding</b>
-<h5>{{ total_outstanding|intcomma }}</h5>
-</div>
-</div>
-
-<div class="col-md-2">
-<div class="card shadow-sm p-2">
-<b>Total Potensi Awal</b>
-<h5>Rp {{ total_potensi_awal|floatformat:0|intcomma }}</h5>
-</div>
-</div>
-
-<div class="col-md-2">
-<div class="card shadow-sm p-2">
-<b>Total Potensi Akhir</b>
-<h5>Rp {{ total_potensi_akhir|floatformat:0|intcomma }}</h5>
-</div>
-</div>
-
-<div class="col-md-2">
-<div class="card shadow-sm p-2">
-<b>Total Realisasi</b>
-<h5>Rp {{ total_realisasi|floatformat:0|intcomma }}</h5>
-</div>
-</div>
-
+  <div class="col-md-2"><div class="card p-2"><b>Total DPP</b><h5>{{ total_dpp|intcomma }}</h5></div></div>
+  <div class="col-md-2"><div class="card p-2"><b>Total LHP2DK</b><h5>{{ total_lhp2dk|intcomma }}</h5></div></div>
+  <div class="col-md-2"><div class="card p-2"><b>Total Outstanding</b><h5>{{ total_outstanding|floatformat:0 }}</h5></div></div>
+  <div class="col-md-2"><div class="card p-2"><b>Total Potensi Awal</b><h5>Rp {{ total_potensi_awal|floatformat:0|intcomma }}</h5></div></div>
+  <div class="col-md-2"><div class="card p-2"><b>Total Potensi Akhir</b><h5>Rp {{ total_potensi_akhir|floatformat:0|intcomma }}</h5></div></div>
+  <div class="col-md-2"><div class="card p-2"><b>Total Realisasi</b><h5>Rp {{ total_realisasi|floatformat:0|intcomma }}</h5></div></div>
 </div>
 
 <br><br>
