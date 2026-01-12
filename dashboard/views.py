@@ -510,7 +510,9 @@ def upload_dpp(request):
             return redirect("upload_page")
 
         try:
-            df = pd.read_csv(file, sep=";", encoding="latin1")
+            df = pd.read_csv(file, sep=",", encoding="latin1")
+            print('masuk sini',df.columns.tolist())
+
 
             now = timezone.now()
             current_month = now.month
@@ -539,7 +541,7 @@ def upload_dpp(request):
             for _, r in df.iterrows():
                 objs.append(DPP(
                     no=to_int(r["NO"]),
-                    npwp=str(r["NPWP"]).replace(".", "").strip(),
+                    npwp=str(r["NPWP"]).strip(),
                     nama_wp=r["Nama WP"],
                     unit_kerja=r["Unit Kerja"],
                     petugas_pengawasan=r["Petugas Pengawasan"],
