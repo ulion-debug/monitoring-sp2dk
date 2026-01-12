@@ -511,9 +511,7 @@ def upload_dpp(request):
 
         try:
             df = pd.read_csv(file, sep=",", encoding="latin1")
-            print('masuk sini',df.columns.tolist())
-
-
+            
             now = timezone.now()
             current_month = now.month
             current_year = now.year
