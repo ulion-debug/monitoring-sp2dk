@@ -510,9 +510,7 @@ def upload_dpp(request):
             return redirect("upload_page")
 
         try:
-            df = pd.read_csv(file, sep=",", encoding="latin1")
-            print('masuk sini',df.columns.tolist())
-
+            df = pd.read_csv(file, sep=";", encoding="latin1")
 
             now = timezone.now()
             current_month = now.month
