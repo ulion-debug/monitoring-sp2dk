@@ -182,7 +182,7 @@ def dashboard(request):
     seksi_summary = (
         base_dpp.groupby("unit_kerja")
         .agg(
-            dpp=("npwp", "nunique"),
+            dpp=("npwp", "count"),
 
             lhpt_total=("lhpt_ada", "sum"),
             lhpt_belum_sp2dk=("lhpt_belum_sp2dk", "sum"),
@@ -227,7 +227,7 @@ def dashboard(request):
     ar_detail = (
         base_dpp.groupby(["unit_kerja", "petugas_pengawasan"])
         .agg(
-            dpp=("npwp", "nunique"),
+            dpp=("npwp", "count"),
 
             lhpt_total=("lhpt_ada", "sum"),
             lhpt_belum_sp2dk=("lhpt_belum_sp2dk", "sum"),
@@ -269,7 +269,7 @@ def dashboard(request):
         .str.replace("-", "_")
     )
 
-    total_dpp = int(seksi_summary["dpp"].sum())
+    total_dpp = int(base_dpp.shape[0])
     total_lhp2dk = int(seksi_summary["sp2dk_sudah_lhp2dk"].sum())
     total_outstanding = int(seksi_summary["sp2dk_belum_lhp2dk"].sum())
 
