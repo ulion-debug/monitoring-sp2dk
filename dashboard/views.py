@@ -139,7 +139,6 @@ def dashboard(request):
             "npwp",
             "tahun_pajak",
             "nomor_sp2dk",
-            "lhpt_nomor",
             "nomor_lhp2dk",
             "tanggal_sp2dk",
             "kesimpulan",
@@ -148,45 +147,44 @@ def dashboard(request):
         )
     )
 
-    sp2dk_df["npwp"] = sp2dk_df["npwp"].astype(str).str.strip()
-    sp2dk_df["estimasi_potensi_lhp2dk"] = pd.to_numeric(
-        sp2dk_df["estimasi_potensi_lhp2dk"], errors="coerce"
-    ).fillna(0)
-    sp2dk_df["realisasi"] = pd.to_numeric(
-        sp2dk_df["realisasi"], errors="coerce"
-    ).fillna(0)
+    if not sp2dk_df.empty:
+        sp2dk_df["npwp"] = sp2dk_df["npwp"].astype(str).str.strip()
+        sp2dk_df["estimasi_potensi_lhp2dk"] = pd.to_numeric(
+            sp2dk_df["estimasi_potensi_lhp2dk"], errors="coerce"
+        ).fillna(0)
+        sp2dk_df["realisasi"] = pd.to_numeric(
+            sp2dk_df["realisasi"], errors="coerce"
+        ).fillna(0)
 
     merged = pd.merge(
-        sp2dk_df,
         dpp_df,
+        sp2dk_df,
         on=["npwp", "tahun_pajak"],
         how="left"
     )
 
-    merged["lhpt_ada"] = merged["lhpt_nomor"].notna()
+    merged["lhpt_ada"] = True
     merged["sp2dk_ada"] = merged["nomor_sp2dk"].notna()
-    merged["lhp2dk_ada"] = merged["nomor_lhp2dk"].notna()
+    merged["lhpt_belum_sp2dk"] = ~merged["sp2dk_ada"]
 
-    merged["lhpt_sudah_sp2dk"] = merged["lhpt_ada"] & merged["sp2dk_ada"]
-    merged["lhpt_belum_sp2dk"] = merged["lhpt_ada"] & ~merged["sp2dk_ada"]
-
-    merged["sp2dk_sudah_lhp2dk"] = merged["sp2dk_ada"] & merged["lhp2dk_ada"]
-    merged["sp2dk_belum_lhp2dk"] = merged["sp2dk_ada"] & ~merged["lhp2dk_ada"]
+    merged["sp2dk_sudah_lhp2dk"] = merged["sp2dk_ada"] & merged["nomor_lhp2dk"].notna()
+    merged["sp2dk_belum_lhp2dk"] = merged["sp2dk_ada"] & ~merged["nomor_lhp2dk"].notna()
 
     merged["potensi_awal"] = merged["nilai_potensi_awal_sp2dk"].fillna(0)
     merged["potensi_akhir"] = merged["estimasi_potensi_lhp2dk"].fillna(0)
+    merged["realisasi"] = merged["realisasi"].fillna(0)
 
     if kesimpulan_filter != "All":
         merged = merged[merged["kesimpulan"] == kesimpulan_filter]
 
-    unique_sp2dk = merged.drop_duplicates(subset=["npwp", "nomor_sp2dk"])
+    base_dpp = merged.drop_duplicates(subset=["npwp", "tahun_pajak"])
+
     seksi_summary = (
-        unique_sp2dk.groupby("unit_kerja")
+        base_dpp.groupby("unit_kerja")
         .agg(
-            dpp=("npwp", "count"),
+            dpp=("npwp", "nunique"),
 
             lhpt_total=("lhpt_ada", "sum"),
-            lhpt_sudah_sp2dk=("lhpt_sudah_sp2dk", "sum"),
             lhpt_belum_sp2dk=("lhpt_belum_sp2dk", "sum"),
 
             sp2dk_total=("sp2dk_ada", "sum"),
@@ -200,16 +198,23 @@ def dashboard(request):
         .reset_index()
     )
 
+    seksi_summary["lhpt_sudah_sp2dk"] = (
+        seksi_summary["lhpt_total"] - seksi_summary["lhpt_belum_sp2dk"]
+    )
+
     seksi_summary["lhpt_pct"] = (
-        seksi_summary["lhpt_sudah_sp2dk"] / seksi_summary["lhpt_total"] * 100
-    ).replace([float("inf")], 0).fillna(0).round(2)
+        (seksi_summary["lhpt_total"] - seksi_summary["lhpt_belum_sp2dk"])
+        / seksi_summary["lhpt_total"] * 100
+    ).round(2)
 
     seksi_summary["sp2dk_pct"] = (
-        seksi_summary["sp2dk_sudah_lhp2dk"] / seksi_summary["sp2dk_total"] * 100
+        seksi_summary["sp2dk_sudah_lhp2dk"]
+        / seksi_summary["sp2dk_total"] * 100
     ).replace([float("inf")], 0).fillna(0).round(2)
 
     seksi_summary["success_rate"] = (
-        seksi_summary["realisasi"] / seksi_summary["potensi_awal"] * 100
+        seksi_summary["realisasi"]
+        / seksi_summary["potensi_awal"] * 100
     ).replace([float("inf")], 0).fillna(0).round(2)
 
     seksi_summary["unit_key"] = (
@@ -220,12 +225,11 @@ def dashboard(request):
     )
 
     ar_detail = (
-        unique_sp2dk.groupby(["unit_kerja", "petugas_pengawasan"])
+        base_dpp.groupby(["unit_kerja", "petugas_pengawasan"])
         .agg(
-            dpp=("npwp", "count"),
+            dpp=("npwp", "nunique"),
 
             lhpt_total=("lhpt_ada", "sum"),
-            lhpt_sudah_sp2dk=("lhpt_sudah_sp2dk", "sum"),
             lhpt_belum_sp2dk=("lhpt_belum_sp2dk", "sum"),
 
             sp2dk_total=("sp2dk_ada", "sum"),
@@ -239,16 +243,23 @@ def dashboard(request):
         .reset_index()
     )
 
+    ar_detail["lhpt_sudah_sp2dk"] = (
+        ar_detail["lhpt_total"] - ar_detail["lhpt_belum_sp2dk"]
+    )
+
     ar_detail["lhpt_pct"] = (
-        ar_detail["lhpt_sudah_sp2dk"] / ar_detail["lhpt_total"] * 100
-    ).replace([float("inf")], 0).fillna(0).round(2)
+        (ar_detail["lhpt_total"] - ar_detail["lhpt_belum_sp2dk"])
+        / ar_detail["lhpt_total"] * 100
+    ).round(2)
 
     ar_detail["sp2dk_pct"] = (
-        ar_detail["sp2dk_sudah_lhp2dk"] / ar_detail["sp2dk_total"] * 100
+        ar_detail["sp2dk_sudah_lhp2dk"]
+        / ar_detail["sp2dk_total"] * 100
     ).replace([float("inf")], 0).fillna(0).round(2)
 
     ar_detail["success_rate"] = (
-        ar_detail["realisasi"] / ar_detail["potensi_awal"] * 100
+        ar_detail["realisasi"]
+        / ar_detail["potensi_awal"] * 100
     ).replace([float("inf")], 0).fillna(0).round(2)
 
     ar_detail["unit_key"] = (
@@ -259,14 +270,8 @@ def dashboard(request):
     )
 
     total_dpp = int(seksi_summary["dpp"].sum())
-
-    total_lhp2dk = int(
-        seksi_summary["sp2dk_sudah_lhp2dk"].sum()
-    )
-
-    total_outstanding = int(
-        seksi_summary["sp2dk_belum_lhp2dk"].sum()
-    )
+    total_lhp2dk = int(seksi_summary["sp2dk_sudah_lhp2dk"].sum())
+    total_outstanding = int(seksi_summary["sp2dk_belum_lhp2dk"].sum())
 
     total_potensi_awal = seksi_summary["potensi_awal"].sum()
     total_potensi_akhir = seksi_summary["potensi_akhir"].sum()
