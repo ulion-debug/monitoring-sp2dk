@@ -206,9 +206,29 @@ def dashboard(request):
         (seksi_summary["lhpt_total"] - seksi_summary["lhpt_belum_sp2dk"])
         / seksi_summary["lhpt_total"] * 100
     ).round(2)
+    
+    seksi_summary["lhpt_sudah_pct"] = (
+        seksi_summary["lhpt_sudah_sp2dk"]
+        / seksi_summary["lhpt_total"] * 100
+    ).replace([float("inf")], 0).fillna(0).round(2)
+
+    seksi_summary["lhpt_belum_pct"] = (
+        seksi_summary["lhpt_belum_sp2dk"]
+        / seksi_summary["lhpt_total"] * 100
+    ).replace([float("inf")], 0).fillna(0).round(2)
 
     seksi_summary["sp2dk_pct"] = (
         seksi_summary["sp2dk_sudah_lhp2dk"]
+        / seksi_summary["sp2dk_total"] * 100
+    ).replace([float("inf")], 0).fillna(0).round(2)
+    
+    seksi_summary["sp2dk_sudah_pct"] = (
+        seksi_summary["sp2dk_sudah_lhp2dk"]
+        / seksi_summary["sp2dk_total"] * 100
+    ).replace([float("inf")], 0).fillna(0).round(2)
+
+    seksi_summary["sp2dk_belum_pct"] = (
+        seksi_summary["sp2dk_belum_lhp2dk"]
         / seksi_summary["sp2dk_total"] * 100
     ).replace([float("inf")], 0).fillna(0).round(2)
 
@@ -251,9 +271,29 @@ def dashboard(request):
         (ar_detail["lhpt_total"] - ar_detail["lhpt_belum_sp2dk"])
         / ar_detail["lhpt_total"] * 100
     ).round(2)
+    
+    ar_detail["lhpt_sudah_pct"] = (
+        ar_detail["lhpt_sudah_sp2dk"]
+        / ar_detail["lhpt_total"] * 100
+    ).replace([float("inf")], 0).fillna(0).round(2)
+
+    ar_detail["lhpt_belum_pct"] = (
+        ar_detail["lhpt_belum_sp2dk"]
+        / ar_detail["lhpt_total"] * 100
+    ).replace([float("inf")], 0).fillna(0).round(2)
 
     ar_detail["sp2dk_pct"] = (
         ar_detail["sp2dk_sudah_lhp2dk"]
+        / ar_detail["sp2dk_total"] * 100
+    ).replace([float("inf")], 0).fillna(0).round(2)
+    
+    ar_detail["sp2dk_sudah_pct"] = (
+        ar_detail["sp2dk_sudah_lhp2dk"]
+        / ar_detail["sp2dk_total"] * 100
+    ).replace([float("inf")], 0).fillna(0).round(2)
+
+    ar_detail["sp2dk_belum_pct"] = (
+        ar_detail["sp2dk_belum_lhp2dk"]
         / ar_detail["sp2dk_total"] * 100
     ).replace([float("inf")], 0).fillna(0).round(2)
 
