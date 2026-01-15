@@ -12,10 +12,22 @@ from datetime import date
 
 API_LOGIN_URL = "http://127.0.0.1:8001/login"
 
+from jose import jwt
+SECRET_KEY = "SP2DK_SECRET_KEY"
+ALGORITHM = "HS256"
+
 def require_login(view):
     def wrapper(request, *args, **kwargs):
         if not request.session.get("token"):
             return redirect("login")
+        return view(request, *args, **kwargs)
+    return wrapper
+
+def require_oc(view):
+    def wrapper(request, *args, **kwargs):
+        if request.session.get("role") != "oc":
+            messages.error(request, "Anda tidak memiliki akses upload data")
+            return redirect("dashboard")
         return view(request, *args, **kwargs)
     return wrapper
 
@@ -87,7 +99,14 @@ def login_page(request):
         if res.status_code != 200:
             return render(request, "dashboard/login.html", {"error": True})
 
-        request.session["token"] = res.json()["access_token"]
+        token = res.json()["access_token"]
+
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+        request.session["token"] = token
+        request.session["username"] = payload["sub"]
+        request.session["role"] = payload["role"]
+
         return redirect("dashboard")
 
     return render(request, "dashboard/login.html")
@@ -541,12 +560,14 @@ def sp2dk_outstanding(request):
     })
     
 @require_login
+@require_oc
 def upload_page(request):
     return render(request, "dashboard/upload_page.html", {
         "menu": "upload"
     })
 
 @require_login
+@require_oc
 def upload_dpp(request):
     if request.method == "POST":
         file = request.FILES.get("file")
@@ -697,6 +718,7 @@ def _import_sp2dk(df, model):
     model.objects.bulk_create(objs)
     
 @require_login
+@require_oc
 def upload_sp2dk_current(request):
     if request.method == "POST":
         df = pd.read_excel(
@@ -712,6 +734,7 @@ def upload_sp2dk_current(request):
     return redirect("upload_page")
 
 @require_login
+@require_oc
 def upload_sp2dk_previous(request):
     if request.method == "POST":
         df = pd.read_excel(

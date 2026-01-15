@@ -78,13 +78,13 @@
 <td>{{ d.nama_wp }}</td>
 
 <td>{{ d.nomor_sp2dk|default:"-" }}</td>
-<td>{{ d.tanggal_sp2dk|default:"-" }}</td>
+<td>{{ d.tanggal_sp2dk|date:"d-m-Y" }}</td>
 
-<td>{{ d.tahun_sp2dk }}</td>
+<td class="text-center">{{ d.tahun_sp2dk }}</td>
 
-<td>Rp {{ d.estimasi_potensi_sp2dk|default:0|floatformat:0|intcomma }}</td>
-<td>Rp {{ d.realisasi|default:0|floatformat:0|intcomma }}</td>
-<td>{{ d.hari|floatformat:0 }}</td>
+<td class="text-end">Rp {{ d.estimasi_potensi_sp2dk|default:0|floatformat:0|intcomma }}</td>
+<td class="text-end">Rp {{ d.realisasi|default:0|floatformat:0|intcomma }}</td>
+<td class="text-center">{{ d.hari|floatformat:0 }}</td>
 </tr>
 
 {% empty %}

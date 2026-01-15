@@ -133,11 +133,13 @@ body{
             OUTSTANDING
         </div>
     </a>
+    {% if request.session.role == "oc" %}
     <a href="{% url 'upload_page' %}" style="text-decoration:none; color:black">
         <div class="sidebar-item {% if menu == 'upload' %}active{% endif %}">
             UPLOAD DATA
         </div>
     </a>
+    {% endif %}
     <div class="logout-box">
         <a href="/logout/" style="text-decoration:none; color:inherit">
             <div class="logout-item">

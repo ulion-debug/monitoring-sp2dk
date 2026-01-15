@@ -103,17 +103,17 @@
 <td>{{ d.npwp }}</td>
 <td>{{ d.nama_wp }}</td>
 <td>{{ d.nomor_sp2dk }}</td>
-<td>{{ d.tanggal_sp2dk }}</td>
-<td>{{ d.tahun_sp2dk }}</td>
-<td>Rp {{ d.estimasi_potensi_sp2dk|default:0|floatformat:0|intcomma }}</td>
+<td>{{ d.tanggal_sp2dk|date:"d-m-Y" }}</td>
+<td class="text-center">{{ d.tahun_sp2dk }}</td>
+<td class="text-end">Rp {{ d.estimasi_potensi_sp2dk|default:0|floatformat:0|intcomma }}</td>
 <td>{{ d.nomor_lhp2dk|default:"-" }}</td>
 <td>{{ d.tanggal_lhp2dk|date:"d-m-Y" }}</td>
 <td>
 <span class="badge bg-info text-dark">{{ d.kesimpulan }}</span>
 </td>
-<td>Rp {{ d.estimasi_potensi_lhp2dk|default:0|floatformat:0|intcomma }}</td>
-<td>Rp {{ d.realisasi|default:0|floatformat:0|intcomma }}</td>
-<td>{{ d.hari|floatformat:0 }}</td>
+<td class="text-end">Rp {{ d.estimasi_potensi_lhp2dk|default:0|floatformat:0|intcomma }}</td>
+<td class="text-end">Rp {{ d.realisasi|default:0|floatformat:0|intcomma }}</td>
+<td class="text-center">{{ d.hari|floatformat:0 }}</td>
 <td>
     {% if d.status == "Closed" %}
         <span class="badge bg-success">Closed</span>
@@ -122,7 +122,7 @@
     {% endif %}
 </td>
 
-<td>
+<td class="text-center">
     {% if d.status == "Closed" %}
         {{ d.waktu_closed|default:"-" }}
     {% else %}

@@ -96,24 +96,24 @@
     + {{ s.unit_kerja }}
   </td>
 
-  <td>{{ s.dpp }}</td>
+  <td class="text-center">{{ s.dpp }}</td>
 
-  <td>{{ s.lhpt_sudah_sp2dk }}</td>
-  <td>{{ s.lhpt_sudah_pct }}%</td>
-  <td>{{ s.lhpt_belum_sp2dk }}</td>
-  <td>{{ s.lhpt_belum_pct }}%</td>
+  <td class="text-center">{{ s.lhpt_sudah_sp2dk }}</td>
+  <td class="text-center">{{ s.lhpt_sudah_pct }}%</td>
+  <td class="text-center">{{ s.lhpt_belum_sp2dk }}</td>
+  <td class="text-center">{{ s.lhpt_belum_pct }}%</td>
 
 
-  <td>{{ s.sp2dk_sudah_lhp2dk }}</td>
-  <td>{{ s.sp2dk_sudah_pct }}%</td>
-  <td>{{ s.sp2dk_belum_lhp2dk }}</td>
-  <td>{{ s.sp2dk_belum_pct }}%</td>
+  <td class="text-center">{{ s.sp2dk_sudah_lhp2dk }}</td>
+  <td class="text-center">{{ s.sp2dk_sudah_pct }}%</td>
+  <td class="text-center">{{ s.sp2dk_belum_lhp2dk }}</td>
+  <td class="text-center">{{ s.sp2dk_belum_pct }}%</td>
 
-  <td>Rp {{ s.potensi_awal|floatformat:0|intcomma }}</td>
-  <td>Rp {{ s.potensi_akhir|floatformat:0|intcomma }}</td>
-  <td>Rp {{ s.realisasi|floatformat:0|intcomma }}</td>
+  <td class="text-end">Rp {{ s.potensi_awal|floatformat:0|intcomma }}</td>
+  <td class="text-end">Rp {{ s.potensi_akhir|floatformat:0|intcomma }}</td>
+  <td class="text-end">Rp {{ s.realisasi|floatformat:0|intcomma }}</td>
 
-  <td class="{% if s.success_rate < 50 %}low{% elif s.success_rate < 80 %}mid{% else %}high{% endif %}">
+  <td class="{% if s.success_rate < 50 %}low{% elif s.success_rate < 80 %}mid{% else %}high{% endif %} text-center">
     {{ s.success_rate }}%
   </td>
 </tr>
@@ -123,21 +123,21 @@
 <tr class="{{ s.unit_key }}" style="display:none">
   <td>&nbsp;&nbsp;&nbsp;→ {{ d.petugas_pengawasan }}</td>
 
-  <td>{{ d.dpp }}</td>
+  <td class="text-center">{{ d.dpp }}</td>
 
-  <td>{{ d.lhpt_sudah_sp2dk }}</td>
-  <td>{{ d.lhpt_pct }}%</td>
-  <td>{{ d.lhpt_belum_sp2dk }}</td>
-  <td>{{ d.lhpt_belum_pct }}%</td>
+  <td class="text-center">{{ d.lhpt_sudah_sp2dk }}</td>
+  <td class="text-center">{{ d.lhpt_pct }}%</td>
+  <td class="text-center">{{ d.lhpt_belum_sp2dk }}</td>
+  <td class="text-center">{{ d.lhpt_belum_pct }}%</td>
 
-  <td>{{ d.sp2dk_sudah_lhp2dk }}</td>
-  <td>{{ d.sp2dk_pct }}%</td>
-  <td>{{ d.sp2dk_belum_lhp2dk }}</td>
-  <td>{{ d.sp2dk_belum_pct }}%</td>
+  <td class="text-center">{{ d.sp2dk_sudah_lhp2dk }}</td>
+  <td class="text-center">{{ d.sp2dk_pct }}%</td>
+  <td class="text-center">{{ d.sp2dk_belum_lhp2dk }}</td>
+  <td class="text-center">{{ d.sp2dk_belum_pct }}%</td>
 
-  <td>Rp {{ d.potensi_awal|floatformat:0|intcomma }}</td>
-  <td>Rp {{ d.potensi_akhir|floatformat:0|intcomma }}</td>
-  <td>Rp {{ d.realisasi|floatformat:0|intcomma }}</td>
+  <td class="text-end">Rp {{ d.potensi_awal|floatformat:0|intcomma }}</td>
+  <td class="text-end">Rp {{ d.potensi_akhir|floatformat:0|intcomma }}</td>
+  <td class="text-end">Rp {{ d.realisasi|floatformat:0|intcomma }}</td>
 
   <td class="{% if d.success_rate < 50 %}low{% elif d.success_rate < 80 %}mid{% else %}high{% endif %}">
     {{ d.success_rate }}%
